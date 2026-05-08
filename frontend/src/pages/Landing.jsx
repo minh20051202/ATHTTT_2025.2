@@ -128,58 +128,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
-      {/* CTA Tiles */}
-      <section style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-6)' }}>
-        <h2 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-sans)', fontWeight: '600', color: 'var(--color-text)' }}>Explore Further</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', justifyContent: 'center', alignItems: 'center' }}>
-          <CTATile to="/compare" borderColor="var(--color-oauth2)">
-            <span style={{ color: 'var(--color-oauth2)', fontFamily: 'var(--font-sans)', fontWeight: '700', fontSize: 'var(--text-lg)' }}>Compare</span>
-            <span style={{ color: 'var(--color-text)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)', textAlign: 'center' }}>Side-by-side protocol comparison</span>
-          </CTATile>
-          <CTATile to="/attacks" borderColor="var(--color-zkp)">
-            <span style={{ color: 'var(--color-zkp)', fontFamily: 'var(--font-sans)', fontWeight: '700', fontSize: 'var(--text-lg)' }}>Try Attacks</span>
-            <span style={{ color: 'var(--color-text)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)', textAlign: 'center' }}>Test attack vectors against OAuth2</span>
-          </CTATile>
-        </div>
-      </section>
-
-      {/* Mini Comparison Table */}
-      <section style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)', borderTop: '1px solid var(--color-border)', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)' }}>
-        <div style={{ maxWidth: '42rem', marginLeft: 'auto', marginRight: 'auto' }}>
-          <h2 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-sans)', fontWeight: '600', textAlign: 'center', marginBottom: 'var(--space-8)', color: 'var(--color-text)' }}>
-            Quick Comparison
-          </h2>
-          <div style={{ borderRadius: '8px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-            <table style={{ width: '100%', fontFamily: 'var(--font-sans)' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th style={{ textAlign: 'left', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)', fontWeight: '500' }}>Aspect</th>
-                  <th style={{ textAlign: 'center', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', color: 'var(--color-oauth2)', fontWeight: '500' }}>OAuth 2.0</th>
-                  <th style={{ textAlign: 'center', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', color: 'var(--color-zkp)', fontWeight: '500' }}>ZKP</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: 'var(--space-4)', color: 'var(--color-text)' }}>Security</td>
-                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-muted)' }}>Token-based</td>
-                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-zkp)', fontWeight: '600' }}>Cryptographic</td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: 'var(--space-4)', color: 'var(--color-text)' }}>Complexity</td>
-                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-oauth2)', fontWeight: '600' }}>Lower</td>
-                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-muted)' }}>Higher</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: 'var(--space-4)', color: 'var(--color-text)' }}>Replay Protection</td>
-                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-muted)' }}>Requires HTTPS</td>
-                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-zkp)', fontWeight: '600' }}>Built-in</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
