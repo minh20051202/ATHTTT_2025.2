@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-
 const terminalContent = {
   oauth2: [
     '> Initiating OAuth2 authentication flow...',
@@ -81,29 +79,6 @@ function HeroTerminal({ type, title }) {
         ))}
       </div>
     </div>
-  );
-}
-
-function CTATile({ to, borderColor, children }) {
-  return (
-    <Link
-      to={to}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 'var(--space-6)',
-        borderRadius: '8px',
-        border: '2px solid',
-        borderColor: borderColor,
-        backgroundColor: borderColor === 'var(--color-oauth2)' ? 'var(--color-oauth2-muted)' : 'var(--color-zkp-muted)',
-        minWidth: '160px',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-      }}
-    >
-      {children}
-    </Link>
   );
 }
 

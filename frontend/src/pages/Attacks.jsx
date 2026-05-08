@@ -61,6 +61,7 @@ export default function Attacks() {
       const blinkInterval = setInterval(() => {
         blinks++
         setBlinkState(prev => !prev)
+        // blink 3×80ms = 240ms; matches 1200ms total animation spec
         if (blinks >= 3) {
           clearInterval(blinkInterval)
           setOauth2Phase('exfil')
@@ -188,8 +189,8 @@ export default function Attacks() {
             </div>
             <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text)', wordBreak: 'break-all' }}>
               {latestResult?.auth_info?.type === 'oauth2'
-                ? `Token: ${(latestResult.auth_info.token || '').slice(0, 30)}...`
-                : `Proof: ${(latestResult.auth_info?.proof || '').slice(0, 30)}...`
+                ? `Token: ${(latestResult?.auth_info?.token || '').slice(0, 30)}...`
+                : `Proof: ${(latestResult?.auth_info?.proof || '').slice(0, 30)}...`
               }
             </div>
           </div>
