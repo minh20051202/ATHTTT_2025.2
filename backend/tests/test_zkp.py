@@ -3,6 +3,31 @@ import pytest
 import time
 
 
+class TestZKPTokenStoreCleanup:
+    """Tests for _token_store memory leak prevention."""
+
+    def test_zkp_token_store_cleanup(self):
+        """Expired tokens must be removed from _token_store to prevent memory leak."""
+        from backend.auth.zkp import _token_store, generate_token, cleanup_expired_tokens
+
+        original_keys = set(_token_store.keys())
+
+        # Inject an expired token
+        expired = "test_expired_zkp_token_xyz"
+        _token_store[expired] = {"agent_id": 1, "expires": time.time() - 60}
+
+        # Verify it's there
+        assert expired in _token_store
+
+        # Call cleanup
+        cleanup_expired_tokens()
+
+        # Expired token must be gone
+        assert expired not in _token_store, f"Expired token still present: {expired}"
+        # Original tokens must not be touched
+        assert all(k in _token_store for k in original_keys)
+
+
 class TestZKPAuth:
     """Tests for ZKP authentication flow using the two-step proof."""
 

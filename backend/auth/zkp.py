@@ -84,6 +84,15 @@ _token_store: dict[str, dict] = {}   # token -> {agent_id, commitment, expires}
 _TOKEN_TTL = 60
 
 
+def cleanup_expired_tokens():
+    """Remove expired tokens from _token_store. Call on each generate_token/consume_token."""
+    import time
+    now = time.time()
+    expired = [k for k, v in _token_store.items() if v["expires"] < now]
+    for k in expired:
+        del _token_store[k]
+
+
 def generate_token(agent_id: int) -> str:
     """Issue a server-signed challenge token for a ZKP agent."""
     import time
@@ -92,11 +101,13 @@ def generate_token(agent_id: int) -> str:
         "agent_id": agent_id,
         "expires": time.time() + _TOKEN_TTL,
     }
+    cleanup_expired_tokens()
     return token
 
 
 def consume_token(token: str, expected_agent_id: int) -> bool:
     """Validate and consume a token (single-use, 60-second TTL)."""
+    cleanup_expired_tokens()
     import time
     entry = _token_store.pop(token, None)
     if not entry:
