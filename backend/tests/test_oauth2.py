@@ -72,8 +72,8 @@ class TestOAuth2Auth:
         )
         token = response.json()["access_token"]
 
-        # Verify the access token directly via OAuth2 auth module
-        payload = oauth2_auth.verify_token(token)
+        # Verify the access token directly via OAuth2 auth module (asymmetric — uses agent's public key)
+        payload = oauth2_auth.verify_token_with_public_key(token, oauth2_pkjwt_agent.public_key)
         assert payload["sub"] == str(oauth2_pkjwt_agent.id)
         assert payload["type"] == "oauth2"
 
@@ -94,7 +94,7 @@ class TestOAuth2Auth:
         tampered_token = token + "tampered"
 
         with pytest.raises(Exception):
-            oauth2_auth.verify_token(tampered_token)
+            oauth2_auth.verify_token_with_public_key(tampered_token, oauth2_pkjwt_agent.public_key)
 
     def test_token_endpoint_signs_with_agent_private_key(self, client, oauth2_pkjwt_agent):
         """Access tokens must be signed with per-agent RS256 key, not shared HS256 secret."""
