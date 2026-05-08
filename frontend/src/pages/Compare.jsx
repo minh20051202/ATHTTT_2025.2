@@ -226,7 +226,7 @@ function SecurityChecklist({ items }) {
 function ProtocolSide({ type }) {
   const isOAuth2 = type === 'oauth2'
   const borderColor = isOAuth2 ? 'var(--color-oauth2)' : 'var(--color-zkp)'
-  const badgeClass = isOAuth2 ? 'badge badge-oauth2' : 'badge badge-zkp'
+  const badgeClass = isOAuth2 ? 'badge-oauth2' : 'badge-zkp'
   const badgeText = isOAuth2 ? 'TOKEN-BASED' : 'PROOF-BASED'
   const title = isOAuth2 ? 'OAuth2' : 'ZKP'
   const securityScore = isOAuth2 ? 68 : 95
