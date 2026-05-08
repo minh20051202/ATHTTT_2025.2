@@ -29,7 +29,9 @@ export default function Attacks() {
   const replayTimeoutRef = useRef(null)
 
   const clearAllTimeouts = useCallback(() => {
-    Object.values(timeoutRefs.current).forEach(clearTimeout)
+    Object.values(timeoutRefs.current).forEach(t => {
+      if (typeof t === 'number' && t > 0) clearTimeout(t)
+    })
     timeoutRefs.current = {}
   }, [])
 
