@@ -63,19 +63,19 @@ function HeroTerminal({ type, title, colorClass }) {
   const content = terminalContent[type];
 
   return (
-    <div className={`terminal-window ${colorClass}`}>
+    <div className={`terminal-window ${colorClass}`} style={{ borderLeftColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)', borderLeftWidth: '4px' }}>
       <div className="terminal-window-header">
-        <div className="flex items-center gap-2">
-          <span className={`status-dot ${type === 'oauth2' ? 'bg-[var(--color-oauth2)]' : 'bg-[var(--color-zkp)]'}`} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <span className="status-dot" style={{ backgroundColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)' }} />
           <span className="terminal-title">{title}</span>
         </div>
-        <span className={`badge-${type} text-xs px-2 py-0.5 rounded`}>
+        <span className={`badge-${type}`} style={{ fontSize: 'var(--text-xs)', padding: '0 var(--space-2)', paddingTop: '2px', paddingBottom: '2px', borderRadius: '4px', display: 'inline-block' }}>
           {type === 'oauth2' ? 'OAuth 2.0' : 'ZKP'}
         </span>
       </div>
       <div className="terminal-window-content">
         {content.map((line, i) => (
-          <div key={i} className={line.startsWith('> [') ? 'text-[var(--color-muted)]' : ''}>
+          <div key={i} style={line.startsWith('> [') ? { color: 'var(--color-muted)' } : {}}>
             {line}
           </div>
         ))}
@@ -92,16 +92,16 @@ function Stepper() {
   ];
 
   return (
-    <div className="flex items-start justify-center gap-0 w-full overflow-x-auto px-4">
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '0', width: '100%', overflowX: 'auto', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)' }}>
       {steps.map((step, i) => (
-        <div key={step.num} className="flex items-start">
-          <div className="flex flex-col items-center min-w-[180px]">
-            <div className="text-2xl font-bold text-[var(--color-primary)] font-mono">{step.num}</div>
-            <div className="text-base font-sans font-semibold text-[var(--color-text)] mt-1">{step.title}</div>
-            <div className="text-sm text-[var(--color-muted)] mt-1 text-center">{step.desc}</div>
+        <div key={step.num} style={{ display: 'flex', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '180px' }}>
+            <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 'bold', color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>{step.num}</div>
+            <div style={{ fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', fontWeight: '600', color: 'var(--color-text)', marginTop: 'var(--space-1)' }}>{step.title}</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginTop: 'var(--space-1)', textAlign: 'center' }}>{step.desc}</div>
           </div>
           {i < steps.length - 1 && (
-            <div className="text-[var(--color-muted)] font-mono text-xl mx-4 mt-1 flex-shrink-0">→</div>
+            <div style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', marginLeft: 'var(--space-4)', marginRight: 'var(--space-4)', marginTop: 'var(--space-1)', flexShrink: '0' }}>→</div>
           )}
         </div>
       ))}
@@ -113,10 +113,18 @@ function CTATile({ to, borderColor, children }) {
   return (
     <Link
       to={to}
-      className="flex flex-col items-center justify-center p-6 rounded-lg border-2 transition-all hover:scale-105 min-w-[160px]"
       style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--space-6)',
+        borderRadius: '8px',
+        border: '2px solid',
         borderColor: borderColor,
         backgroundColor: borderColor === 'var(--color-oauth2)' ? 'var(--color-oauth2-muted)' : 'var(--color-zkp-muted)',
+        minWidth: '160px',
+        transition: 'transform 0.2s, box-shadow 0.2s',
       }}
     >
       {children}
@@ -126,79 +134,79 @@ function CTATile({ to, borderColor, children }) {
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}>
       {/* Hero Headline */}
-      <section className="flex flex-col items-center justify-center min-h-screen px-4 py-16">
-        <h1 className="text-3xl md:text-4xl font-sans font-bold text-center max-w-3xl mb-16 leading-tight">
+      <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)', paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)' }}>
+        <h1 style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontFamily: 'var(--font-sans)', fontWeight: '700', textAlign: 'center', maxWidth: '48rem', marginBottom: 'var(--space-16)', lineHeight: '1.2' }}>
           Agent Authentication:{' '}
-          <span className="text-[var(--color-oauth2)]">OAuth2</span> vs{' '}
-          <span className="text-[var(--color-zkp)]">Zero-Knowledge Proof</span>
+          <span style={{ color: 'var(--color-oauth2)' }}>OAuth2</span> vs{' '}
+          <span style={{ color: 'var(--color-zkp)' }}>Zero-Knowledge Proof</span>
         </h1>
 
         {/* Dual Console Panels */}
-        <div className="flex flex-col lg:flex-row gap-8 w-full max-w-5xl px-4">
-          <div className="flex-1">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)', width: '100%', maxWidth: '80rem', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)' }}>
+          <div style={{ flex: '1' }}>
             <HeroTerminal type="oauth2" title="OAuth 2.0 Flow" colorClass="border-l-[var(--color-oauth2)]" />
           </div>
-          <div className="flex-1">
+          <div style={{ flex: '1' }}>
             <HeroTerminal type="zkp" title="ZKP Auth Flow" colorClass="border-l-[var(--color-zkp)]" />
           </div>
         </div>
       </section>
 
       {/* Stepper Section */}
-      <section className="py-16 border-t border-[var(--color-border)]">
-        <h2 className="text-xl font-sans font-semibold text-center mb-12 text-[var(--color-text)]">
+      <section style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)', borderTop: '1px solid var(--color-border)' }}>
+        <h2 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-sans)', fontWeight: '600', textAlign: 'center', marginBottom: 'var(--space-12)', color: 'var(--color-text)' }}>
           How ZKP Authentication Works
         </h2>
         <Stepper />
       </section>
 
       {/* CTA Tiles */}
-      <section className="py-16 border-t border-[var(--color-border)] flex flex-col items-center gap-6">
-        <h2 className="text-xl font-sans font-semibold text-[var(--color-text)]">Explore Further</h2>
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+      <section style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-6)' }}>
+        <h2 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-sans)', fontWeight: '600', color: 'var(--color-text)' }}>Explore Further</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', justifyContent: 'center', alignItems: 'center' }}>
           <CTATile to="/compare" borderColor="var(--color-oauth2)">
-            <span className="text-[var(--color-oauth2)] font-sans font-bold text-lg">Compare</span>
-            <span className="text-[var(--color-text)] text-sm mt-1 text-center">Side-by-side protocol comparison</span>
+            <span style={{ color: 'var(--color-oauth2)', fontFamily: 'var(--font-sans)', fontWeight: '700', fontSize: 'var(--text-lg)' }}>Compare</span>
+            <span style={{ color: 'var(--color-text)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)', textAlign: 'center' }}>Side-by-side protocol comparison</span>
           </CTATile>
           <CTATile to="/attacks" borderColor="var(--color-zkp)">
-            <span className="text-[var(--color-zkp)] font-sans font-bold text-lg">Try Attacks</span>
-            <span className="text-[var(--color-text)] text-sm mt-1 text-center">Test attack vectors against OAuth2</span>
+            <span style={{ color: 'var(--color-zkp)', fontFamily: 'var(--font-sans)', fontWeight: '700', fontSize: 'var(--text-lg)' }}>Try Attacks</span>
+            <span style={{ color: 'var(--color-text)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)', textAlign: 'center' }}>Test attack vectors against OAuth2</span>
           </CTATile>
         </div>
       </section>
 
       {/* Mini Comparison Table */}
-      <section className="py-16 border-t border-[var(--color-border)] px-4">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-xl font-sans font-semibold text-center mb-8 text-[var(--color-text)]">
+      <section style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)', borderTop: '1px solid var(--color-border)', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)' }}>
+        <div style={{ maxWidth: '42rem', marginLeft: 'auto', marginRight: 'auto' }}>
+          <h2 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-sans)', fontWeight: '600', textAlign: 'center', marginBottom: 'var(--space-8)', color: 'var(--color-text)' }}>
             Quick Comparison
           </h2>
-          <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
-            <table className="w-full font-sans">
+          <div style={{ borderRadius: '8px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', fontFamily: 'var(--font-sans)' }}>
               <thead>
-                <tr className="border-b border-[var(--color-border)]">
-                  <th className="text-left p-4 bg-[var(--color-surface)] text-[var(--color-muted)] font-medium">Aspect</th>
-                  <th className="text-center p-4 bg-[var(--color-surface)] text-[var(--color-oauth2)] font-medium">OAuth 2.0</th>
-                  <th className="text-center p-4 bg-[var(--color-surface)] text-[var(--color-zkp)] font-medium">ZKP</th>
+                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <th style={{ textAlign: 'left', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)', fontWeight: '500' }}>Aspect</th>
+                  <th style={{ textAlign: 'center', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', color: 'var(--color-oauth2)', fontWeight: '500' }}>OAuth 2.0</th>
+                  <th style={{ textAlign: 'center', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', color: 'var(--color-zkp)', fontWeight: '500' }}>ZKP</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-[var(--color-border)]">
-                  <td className="p-4 text-[var(--color-text)]">Security</td>
-                  <td className="p-4 text-center text-[var(--color-muted)]">Token-based</td>
-                  <td className="p-4 text-center text-[var(--color-zkp)] font-semibold">Cryptographic</td>
+                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: 'var(--space-4)', color: 'var(--color-text)' }}>Security</td>
+                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-muted)' }}>Token-based</td>
+                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-zkp)', fontWeight: '600' }}>Cryptographic</td>
                 </tr>
-                <tr className="border-b border-[var(--color-border)]">
-                  <td className="p-4 text-[var(--color-text)]">Complexity</td>
-                  <td className="p-4 text-center text-[var(--color-oauth2)] font-semibold">Lower</td>
-                  <td className="p-4 text-center text-[var(--color-muted)]">Higher</td>
+                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: 'var(--space-4)', color: 'var(--color-text)' }}>Complexity</td>
+                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-oauth2)', fontWeight: '600' }}>Lower</td>
+                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-muted)' }}>Higher</td>
                 </tr>
                 <tr>
-                  <td className="p-4 text-[var(--color-text)]">Replay Protection</td>
-                  <td className="p-4 text-center text-[var(--color-muted)]">Requires HTTPS</td>
-                  <td className="p-4 text-center text-[var(--color-zkp)] font-semibold">Built-in</td>
+                  <td style={{ padding: 'var(--space-4)', color: 'var(--color-text)' }}>Replay Protection</td>
+                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-muted)' }}>Requires HTTPS</td>
+                  <td style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-zkp)', fontWeight: '600' }}>Built-in</td>
                 </tr>
               </tbody>
             </table>
