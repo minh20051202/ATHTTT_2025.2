@@ -19,6 +19,18 @@ _CHALLENGE_TTL_SECONDS = 60
 _challenge_store: dict[str, dict] = {}  # token -> {agent_id, expires}
 
 
+def _cleanup_expired_challenges():
+    """Remove expired challenge tokens from _challenge_store to prevent memory leak."""
+    now = time.time()
+    for k in list(_challenge_store.keys()):
+        if _challenge_store[k]["expires"] < now:
+            del _challenge_store[k]
+
+
+# Clean up on module load
+_cleanup_expired_challenges()
+
+
 class ChatRequest(BaseModel):
     message: str
     agent_id: int
@@ -60,10 +72,7 @@ async def zkp_get_challenge(agent_id: int, db: Session = Depends(get_db)):
     _challenge_store[token] = {"agent_id": agent_id, "expires": time.time() + _CHALLENGE_TTL_SECONDS}
 
     # Clean up expired tokens
-    now = time.time()
-    for k, v in list(_challenge_store.items()):
-        if v["expires"] < now:
-            del _challenge_store[k]
+    _cleanup_expired_challenges()
 
     return {"zkp_token": token, "agent_id": agent_id}
 
@@ -99,11 +108,20 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
                 status_code=401
             )
         bearer_token = auth_header[7:]  # strip "Bearer "
-        payload = oauth2_auth.verify_token(bearer_token)
+        if not agent.public_key:
+            raise AppError(
+                error_code=ErrorCode.INVALID_OPERATION,
+                message="OAuth2 agent has no public key",
+                status_code=500
+            )
+        payload = oauth2_auth.verify_token_with_public_key(bearer_token, agent.public_key)
+        token_info = oauth2_auth.get_token_info(bearer_token)
         auth_info = {
             "type": "oauth2",
             "token": bearer_token[:20] + "..." if len(bearer_token) > 20 else bearer_token,
-            "token_info": oauth2_auth.get_token_info(bearer_token)
+            "token_info": token_info,
+            "verification_time": payload.get("verification_time", 0),
+            "token_size": len(bearer_token),
         }
     elif agent.auth_type == "zkp":
         # ZKP authentication: server stores only the public key (ZKSignature).
@@ -149,11 +167,13 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
                 message="ZKP proof verification failed",
                 status_code=401
             )
+        proof_info = zkp_auth.get_proof_info(request.zkp_proof)
         auth_info = {
             "type": "zkp",
             "proof": request.zkp_proof,
-            "proof_info": zkp_auth.get_proof_info(request.zkp_proof),
+            "proof_info": proof_info,
             "verification_time": verify_time,
+            "token_size": proof_info.get("proof_size", 0),
         }
     else:
         raise AppError(
