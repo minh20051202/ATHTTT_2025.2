@@ -212,11 +212,14 @@ async def oauth2_token_endpoint(
 
         # Mint access token using the agent's per-agent oauth2_private_key (RS256)
         if not agent.oauth2_private_key:
-            raise AppError(
-                error_code="INVALID_OPERATION",
-                message="OAuth2 agent has no signing key",
-                status_code=500
-            )
+            # Lazy migration: pre-existing agents from before the per-agent key change
+            # have public_key (RSA verification key) but no oauth2_private_key.
+            # Generate and persist one now so the agent can mint tokens.
+            _, private_pem = oauth2_auth.create_rsa_keypair()
+            agent.oauth2_private_key = private_pem
+            db.add(agent)
+            db.commit()
+            db.refresh(agent)
         access_token, sign_time = oauth2_auth.create_access_token_with_key(
             data={"sub": str(agent.id), "agent_name": agent.name, "type": "oauth2"},
             private_key_pem=agent.oauth2_private_key,
