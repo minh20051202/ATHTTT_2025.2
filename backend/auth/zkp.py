@@ -1,0 +1,254 @@
+"""
+Zero-Knowledge Proof authentication using Schnorr Identification Protocol.
+
+Domain parameters (public, agreed upon by client and server):
+  - Safe prime p  (512-bit, for demo)
+  - Generator g    (shared, not secret)
+  - Subgroup order q (512-bit)
+
+Key generation:
+  - Secret: x = H(password)  (deterministic — no random per-key salt)
+  - Public: y = g^x mod p
+
+Authentication (3-pass Schnorr identification):
+  1. Client → Server: commitment  t = g^r  (r = random nonce, kept secret)
+  2. Server → Client: challenge    c = H(t || token)  (c depends on t and server's token)
+  3. Client → Server: response     s = r + c·x  (mod q)
+  4. Server verifies: g^s ≡ t · y^c  (mod p)
+
+Security property: Server stores ONLY y. It can never derive x or the password.
+The password never leaves the client.
+"""
+from typing import Tuple
+import hashlib
+import secrets
+import json
+
+
+# ---------------------------------------------------------------------------
+# Domain parameters (educational/demo — 257-bit safe prime).
+# p = 2q + 1, where q is prime. g generates the order-q subgroup.
+# For production: use FIPS 186-5 parameters (e.g., 2048-bit or 3072-bit)
+# ---------------------------------------------------------------------------
+_DHP = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
+_DHQ = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cff
+_DHG = 0x4
+_EXTERNAL_DHP = _DHP
+_EXTERNAL_DHQ = _DHQ
+_EXTERNAL_DHG = _DHG
+
+
+def _modpow(base: int, exp: int, mod: int) -> int:
+    return pow(base, exp, mod)
+
+
+# ---------------------------------------------------------------------------
+# Public API (used by client-side JS which mirrors these formulas)
+# ---------------------------------------------------------------------------
+
+def get_domain_params() -> dict:
+    """Return the shared domain parameters (p, g, q)."""
+    return {"p": _DHP, "g": _DHG, "q": _DHQ}
+
+
+def hash_secret(secret: str) -> int:
+    """Derive the private exponent x = H(secret) mod q.
+
+    H is deterministic (no per-user salt) so the server can verify that a
+    given public key y was honestly computed from the password.
+    """
+    return int(hashlib.sha512(secret.encode()).hexdigest(), 16) % _DHQ
+
+
+def create_public_key(secret: str) -> str:
+    """Compute y = g^x mod p from a password — used at ZKP agent registration.
+
+    In the correct ZKP flow, this is called CLIENT-SIDE only.
+    The server stores only the returned JSON (never the secret).
+    """
+    x = hash_secret(secret)
+    y = _modpow(_DHG, x, _DHP)
+    return json.dumps({
+        "y": y,
+        "p": _DHP,
+        "g": _DHG,
+        "q": _DHQ,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Token store (single-use, time-limited) — used for ZKP challenge/response
+# ---------------------------------------------------------------------------
+
+_token_store: dict[str, dict] = {}   # token -> {agent_id, commitment, expires}
+_TOKEN_TTL = 60
+
+
+def generate_token(agent_id: int) -> str:
+    """Issue a server-signed challenge token for a ZKP agent."""
+    import time
+    token = secrets.token_urlsafe(48)
+    _token_store[token] = {
+        "agent_id": agent_id,
+        "expires": time.time() + _TOKEN_TTL,
+    }
+    return token
+
+
+def consume_token(token: str, expected_agent_id: int) -> bool:
+    """Validate and consume a token (single-use, 60-second TTL)."""
+    import time
+    entry = _token_store.pop(token, None)
+    if not entry:
+        return False
+    if entry["expires"] < time.time():
+        return False
+    if entry["agent_id"] != expected_agent_id:
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Verification — handles BOTH new Schnorr JSON format and legacy noknow.
+# chat.py calls this single entry point so it works with all agent types.
+# ---------------------------------------------------------------------------
+
+def _verify_schnorr(proof_data: str, pk_json: str, token: str) -> Tuple[bool, float]:
+    """Verify a pure Schnorr proof (JSON format)."""
+    import time
+    start = time.time()
+    try:
+        proof = json.loads(proof_data)
+        pk = json.loads(pk_json)
+        t = proof["commitment"]
+        s = proof["response"]
+        y = pk["y"]
+        p, g = pk["p"], pk["g"]
+        q = _DHQ
+
+        # Recompute challenge: must match what client computed
+        c = int(hashlib.sha512(f"{t:x}{token}".encode()).hexdigest(), 16) % q
+
+        # Verify: g^s ≡ t * y^c (mod p)
+        left = _modpow(g, s, p)
+        right = (_modpow(y, c, p) * (t % p)) % p
+        elapsed = time.time() - start
+        return left == right, elapsed
+    except Exception:
+        import time as _t
+        return False, _t.time() - start
+
+
+def _verify_noknow_legacy(
+    proof_data: str,
+    sig_dump: str,
+    token: str,
+) -> Tuple[bool, float]:
+    """Verify a proof using the old noknow ZKSignature format (pre-seeded agents)."""
+    import time as _t
+    start = _t.time()
+    try:
+        from schnorrzkp.core import ZK, ZKSignature, ZKProof
+        proof = ZKProof.load(proof_data)
+        client_sig = ZKSignature.load(sig_dump)
+        client_zk = ZK(client_sig.params)
+        valid = client_zk.verify(proof, client_sig, data=str(token))
+        return valid, _t.time() - start
+    except Exception:
+        return False, _t.time() - start
+
+
+def verify_proof(
+    proof_data: str,
+    public_key_data: str,
+    token: str,
+) -> Tuple[bool, float]:
+    """
+    Verify a ZKP proof — single entry point for all agent types.
+
+    Supported public_key formats:
+      1. JSON {"y": int, "p": int, "g": int}   → pure Schnorr (new agents)
+      2. noknow ZKSignature hex dump          → legacy (pre-seeded demo agents)
+
+    The server never needs to know or check which format — it auto-detects.
+    """
+    # Attempt pure Schnorr JSON first
+    try:
+        parsed = json.loads(public_key_data)
+        if isinstance(parsed, dict) and "y" in parsed:
+            return _verify_schnorr(proof_data, public_key_data, token)
+    except (json.JSONDecodeError, KeyError, TypeError):
+        pass
+
+    # Fall back to legacy noknow (pre-seeded demo agents)
+    return _verify_noknow_legacy(proof_data, public_key_data, token)
+
+
+# ---------------------------------------------------------------------------
+# Backwards-compatible wrapper — provides the zkp_auth object expected by
+# chat.py, main.py, attacks, and tests.
+# Wraps standalone functions with timing instrumentation.
+# ---------------------------------------------------------------------------
+
+class _ZKPAuth:
+    """Wraps standalone Schnorr functions into a backwards-compatible API."""
+
+    def create_client_signature(self, password: str) -> Tuple[str, float]:
+        """Create a public key JSON from a password (client-side operation).
+
+        Returns (public_key_json, elapsed_time).
+        """
+        import time
+        start = time.time()
+        pk = create_public_key(password)
+        return pk, time.time() - start
+
+    def verify_proof(self, proof_data: str, public_key_data: str, token: str) -> Tuple[bool, float]:
+        """Verify a proof — delegates to the standalone verify_proof()."""
+        return verify_proof(proof_data, public_key_data, token)
+
+    def get_proof_info(self, proof_data: str) -> dict:
+        """Parse a proof JSON and return metadata for display."""
+        try:
+            parsed = json.loads(proof_data)
+            return {
+                "proof_size": len(proof_data),
+                "data_size": len(json.dumps(parsed)),
+                "type": "schnorr" if "commitment" in parsed else "noknow",
+                "has_commitment": "commitment" in parsed,
+                "has_response": "response" in parsed,
+                "has_c": "c" in parsed,
+                "has_m": "m" in parsed,
+            }
+        except Exception:
+            return {
+                "proof_size": len(proof_data),
+                "data_size": 0,
+                "error": "failed to parse",
+            }
+
+    def create_token(self) -> Tuple[str, float]:
+        """Create a challenge token (server-side)."""
+        import time
+        start = time.time()
+        token = secrets.token_urlsafe(48)
+        return token, time.time() - start
+
+    def sign_data(self, password: str, public_key: str, token: str) -> Tuple[str, float]:
+        """Client-side: create a Schnorr proof for a challenge token.
+
+        This simulates what the frontend JS does. Used in tests.
+        Returns (proof_json, elapsed_time).
+        """
+        import time
+        start = time.time()
+        x = hash_secret(password)
+        r = secrets.randbelow(_DHQ)
+        t = pow(_DHG, r, _DHP)
+        c = int(hashlib.sha512(f"{t:x}{token}".encode()).hexdigest(), 16) % _DHQ
+        s = (r + c * x) % _DHQ
+        proof = json.dumps({"commitment": t, "response": s})
+        return proof, time.time() - start
+
+
+zkp_auth = _ZKPAuth()

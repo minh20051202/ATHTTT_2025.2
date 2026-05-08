@@ -12,7 +12,7 @@ export default function IntentCard({ intent }) {
       border: '1px solid var(--color-border)',
       borderRadius: '6px',
     }}>
-      <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
+      <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-muted)' }}>
         Intent
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
@@ -34,7 +34,7 @@ export default function IntentCard({ intent }) {
           <pre style={{
             fontSize: '12px',
             fontFamily: 'var(--font-mono)',
-            color: 'var(--color-text-muted)',
+            color: 'var(--color-muted)',
             whiteSpace: 'pre-wrap',
             background: 'transparent',
             margin: 0,
@@ -43,7 +43,7 @@ export default function IntentCard({ intent }) {
           </pre>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '2px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginBottom: '2px' }}>
             Confidence
           </div>
           <div style={{

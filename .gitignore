@@ -10,5 +10,39 @@ wheels/
 .venv
 .env
 .env
-.gstack/
+gstack/
 .worktrees/
+
+# Node.js
+node_modules/
+frontend/node_modules/
+
+# Test artifacts
+.pytest_cache/
+coverage/
+
+# Database files
+*.db
+*.sqlite
+agentic_commerce.db
+test_agentic_commerce.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Session artifacts
+.agents/
+.claude/
+*.tmp
+
+# Logs
+debug_*.db
+*.log
+

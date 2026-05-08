@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAgents } from '../context/AgentsContext.jsx'
 import { useChatHistory } from '../context/ChatHistoryContext.jsx'
-import { chatApi } from '../services/chatApi.js'
+import { chatApi, setAgentConfig } from '../services/chatApi.js'
+import { demoApi } from '../services/demoApi.js'
 import { computeProof } from '../lib/zkp.js'
 import ZKPFlow from '../components/ZKPFlow.jsx'
 import GhostResults from '../components/GhostResults.jsx'
@@ -20,6 +21,42 @@ export default function Chat() {
   const [sending, setSending] = useState(false)
   const [chatError, setChatError] = useState(null)
   const [result, setResult] = useState(null)
+  const [oauth2TokenAcquired, setOauth2TokenAcquired] = useState(false)
+
+  // Seed to get OAuth2 agent + key (one-time per session)
+  useEffect(() => {
+    async function seedAndSetup() {
+      try {
+        const seedRes = await demoApi.seed()
+        // Seed returns demo data including oauth2_agent with private_key
+        // In a real app: instructor provides the private_key out-of-band.
+        // For demo, the seed endpoint returns it once.
+        // We don't persist this in state; the Chat component relies on getAccessToken
+        // in authApi.js which fetches it again if needed.
+        const oauth2Agent = seedRes?.data?.oauth2_agent || seedRes?.data
+        if (oauth2Agent?.private_key) {
+          // Store in window for the demo (refetched on each page load)
+          window._demoPrivateKey = oauth2Agent.private_key
+          window._demoOAuth2AgentId = oauth2Agent.id
+          setOauth2TokenAcquired(true)
+        }
+      } catch (err) {
+        console.warn('Seed failed (may already be seeded):', err.message)
+      }
+    }
+    seedAndSetup()
+  }, [])
+
+  // Update agent config whenever authType or seed result changes
+  useEffect(() => {
+    if (authType === 'oauth2' && window._demoOAuth2AgentId && window._demoPrivateKey) {
+      setAgentConfig({
+        agentId: window._demoOAuth2AgentId,
+        privateKeyPem: window._demoPrivateKey,
+        authType: 'oauth2',
+      })
+    }
+  }, [authType, oauth2TokenAcquired])
 
   // Two-step ZKP flow:
   // 1. GET /api/chat/zkp-challenge/:agent_id → get challenge token
@@ -182,7 +219,7 @@ export default function Chat() {
               style={{
                 height: '76px',
                 padding: '0 var(--space-6)',
-                background: sending ? 'var(--color-text-muted)' : 'var(--color-cta)',
+                background: sending ? 'var(--color-muted)' : 'var(--color-primary)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',

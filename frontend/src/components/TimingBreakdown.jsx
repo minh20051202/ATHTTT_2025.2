@@ -25,7 +25,7 @@ export default function TimingBreakdown({ timing, authType = 'oauth2' }) {
   const stages = [
     { key: 'intent_extraction', label: 'Intent extraction', color: 'var(--color-primary)' },
     { key: 'authentication', label: 'Authentication', color: authColor },
-    { key: 'execution', label: 'Execution', color: '#22C55E' },
+    { key: 'execution', label: 'Execution', color: 'var(--color-success)', },
   ]
 
   return (
@@ -41,7 +41,7 @@ export default function TimingBreakdown({ timing, authType = 'oauth2' }) {
         marginBottom: 'var(--space-3)',
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
-        color: 'var(--color-text-muted)',
+        color: 'var(--color-muted)',
       }}>
         Timing
       </div>

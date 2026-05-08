@@ -128,7 +128,7 @@ export default function AuthInfoPanel({ authInfo }) {
         marginBottom: 'var(--space-3)',
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
-        color: 'var(--color-text-muted)',
+        color: 'var(--color-muted)',
       }}>
         Authentication
       </div>

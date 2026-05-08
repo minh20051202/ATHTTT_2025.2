@@ -96,9 +96,9 @@ function TerminalHeader({ title }) {
   return (
     <div className="terminal-window-header">
       <div style={{ display: 'flex', gap: '6px' }}>
-        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#EF4444', opacity: 0.5, display: 'block' }} />
-        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#F59E0B', opacity: 0.5, display: 'block' }} />
-        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#10B981', opacity: 0.5, display: 'block' }} />
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--color-attack)', opacity: 0.5, display: 'block' }} />
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--color-oauth2)', opacity: 0.5, display: 'block' }} />
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--color-zkp)', opacity: 0.5, display: 'block' }} />
       </div>
       <span style={{ fontSize: '12px', color: 'var(--color-muted)', marginLeft: '8px' }}>{title}</span>
     </div>
@@ -231,7 +231,7 @@ function ProtocolSide({ type }) {
   const title = isOAuth2 ? 'OAuth2' : 'ZKP'
   const securityScore = isOAuth2 ? 68 : 95
   const securityLabel = isOAuth2 ? 'VULNERABLE' : 'SECURE'
-  const securityFillColor = isOAuth2 ? '#EF4444' : 'var(--color-zkp)'
+  const securityFillColor = isOAuth2 ? 'var(--color-attack)' : 'var(--color-zkp)'
   const steps = isOAuth2 ? OAUTH2_STEPS : ZKP_STEPS
   const checklist = isOAuth2 ? OAUTH2_CHECKLIST : ZKP_CHECKLIST
 

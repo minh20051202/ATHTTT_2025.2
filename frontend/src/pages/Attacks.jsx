@@ -124,11 +124,12 @@ export default function Attacks() {
   }
 
   const animationDone = oauth2Phase === 'done' && zkpPhase === 'done'
-  const hasToken = latestResult?.auth_info && (latestResult.auth_info.token || latestResult.auth_info.proof)
+  const authInfo = latestResult?.auth_info
+  const hasToken = authInfo && (authInfo.token || authInfo.proof)
 
-  const token = latestResult?.auth_info?.type === 'oauth2'
-    ? latestResult.auth_info.token
-    : latestResult.auth_info?.proof
+  const token = authInfo?.type === 'oauth2'
+    ? authInfo.token
+    : authInfo?.proof
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'var(--space-8)' }}>
