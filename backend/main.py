@@ -91,11 +91,12 @@ async def seed_demo(db=Depends(get_db)):
         if not user:
             raise
 
-    # OAuth2 Agent — PKJWT: generate RSA keypair, store public key, return private key once.
-    public_key_pem, private_key_pem = oauth2_auth.create_rsa_keypair()
-    oauth2_agent = db_ops.create_agent(
+    # OAuth2 Agent — PKJWT: create_agent already generated and stored the per-agent
+    # signing keypair (public_key=verification key, oauth2_private_key=signing key).
+    # Seed returns the private signing key to the client once, for storage.
+    oauth2_agent_record = db_ops.create_agent(
         db=db, user_id=user.id, name="OAuth2 Agent",
-        auth_type="oauth2", public_key=public_key_pem
+        auth_type="oauth2"
     )
 
     # ZKP Agent — server stores ONLY the public key (ZKSignature params).
@@ -103,10 +104,10 @@ async def seed_demo(db=Depends(get_db)):
     # and is held OUT-OF-BAND by the instructor.
     zkp_password = "zkp_password_456"
     # Client derives the same public key from the shared password
-    public_key, _ = zkp_auth.create_client_signature(zkp_password)
+    zkp_public_key, _ = zkp_auth.create_client_signature(zkp_password)
     zkp_agent = db_ops.create_agent(
         db=db, user_id=user.id, name="ZKP Agent",
-        auth_type="zkp", public_key=public_key
+        auth_type="zkp", public_key=zkp_public_key
     )
 
     # Sample products
@@ -123,11 +124,11 @@ async def seed_demo(db=Depends(get_db)):
         "message": "Demo data created",
         "user": {"id": user.id, "username": user.username},
         "oauth2_agent": {
-            "id": oauth2_agent.id, 
-            "name": oauth2_agent.name, 
-            "auth_type": oauth2_agent.auth_type,
-            "public_key": public_key_pem,
-            "private_key": private_key_pem,
+            "id": oauth2_agent_record.id,
+            "name": oauth2_agent_record.name,
+            "auth_type": oauth2_agent_record.auth_type,
+            "public_key": oauth2_agent_record.public_key,
+            "private_key": oauth2_agent_record.oauth2_private_key,
             "note": "Private key shown once. Store it for the classroom demo."
         },
         "zkp_agent": {"id": zkp_agent.id, "name": zkp_agent.name, "auth_type": zkp_agent.auth_type,
@@ -209,9 +210,16 @@ async def oauth2_token_endpoint(
                 status_code=401
             )
 
-        # Mint access token
-        access_token = oauth2_auth.create_access_token(
-            data={"sub": str(agent.id), "agent_name": agent.name, "type": "oauth2"}
+        # Mint access token using the agent's per-agent oauth2_private_key (RS256)
+        if not agent.oauth2_private_key:
+            raise AppError(
+                error_code="INVALID_OPERATION",
+                message="OAuth2 agent has no signing key",
+                status_code=500
+            )
+        access_token, sign_time = oauth2_auth.create_access_token_with_key(
+            data={"sub": str(agent.id), "agent_name": agent.name, "type": "oauth2"},
+            private_key_pem=agent.oauth2_private_key,
         )
 
         token_info = oauth2_auth.get_token_info(access_token)
@@ -219,7 +227,8 @@ async def oauth2_token_endpoint(
             "access_token": access_token,
             "token_type": "Bearer",
             "expires_in": settings.jwt_expiration_minutes * 60,
-            "token_info": token_info
+            "token_info": token_info,
+            "token_sign_time_ms": round(sign_time * 1000, 3),
         }
     except AppError as e:
         raise e

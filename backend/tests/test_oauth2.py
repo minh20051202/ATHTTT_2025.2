@@ -53,7 +53,7 @@ class TestOAuth2Auth:
         token_info = data["token_info"]
         assert "header" in token_info
         assert "payload" in token_info
-        assert token_info["header"]["alg"] == "HS256"
+        assert token_info["header"]["alg"] == "RS256"
         assert token_info["payload"]["sub"] == str(oauth2_pkjwt_agent.id)
         assert token_info["payload"]["type"] == "oauth2"
 
@@ -95,6 +95,26 @@ class TestOAuth2Auth:
 
         with pytest.raises(Exception):
             oauth2_auth.verify_token(tampered_token)
+
+    def test_token_endpoint_signs_with_agent_private_key(self, client, oauth2_pkjwt_agent):
+        """Access tokens must be signed with per-agent RS256 key, not shared HS256 secret."""
+        from backend.auth.oauth2 import oauth2_auth
+
+        client_id = str(oauth2_pkjwt_agent.id)
+        assertion, _ = oauth2_auth.create_client_assertion(
+            client_id, oauth2_pkjwt_agent._test_private_key
+        )
+
+        token_resp = client.post(
+            "/api/auth/oauth2/token",
+            data={"client_id": client_id, "client_assertion": assertion}
+        )
+        assert token_resp.status_code == 200, f"Token failed: {token_resp.status_code}: {token_resp.text}"
+        access_token = token_resp.json()["access_token"]
+
+        # Must be RS256, not HS256
+        header = jwt.get_unverified_header(access_token)
+        assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
 
 
 class TestOAuth2Chat:
@@ -138,7 +158,7 @@ class TestOAuth2Chat:
 
         # JWT parts should be present
         token_info = data["auth_info"]["token_info"]
-        assert token_info["header"]["alg"] == "HS256"
+        assert token_info["header"]["alg"] == "RS256"
         assert token_info["payload"]["type"] == "oauth2"
 
     def test_chat_oauth2_timing_metrics(self, client, oauth2_pkjwt_agent, sample_products):
@@ -189,69 +209,52 @@ class TestOAuth2Chat:
         assert response.status_code == 404
 
 
-def test_create_private_key_jwt_uses_rs256():
-    """create_private_key_jwt must sign with RS256, not self.algorithm (HS256)."""
-    from backend.auth.oauth2 import OAuth2Auth
-    auth = OAuth2Auth()
-    public_pem, private_pem = auth.create_rsa_keypair()
-    client_id = "agent:42"
+class TestOAuth2PerAgentKeyStorage:
+    """Test per-agent key storage for RS256 token signing (Task 25)."""
 
-    jwt_token, gen_time = auth.create_private_key_jwt(client_id, private_pem)
+    def test_oauth2_agent_stores_per_agent_signing_key(self):
+        """OAuth2 agent must store per-agent RSA signing key and public verification key."""
+        import os
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from backend.db.models import Base
 
-    # Verify it was signed with RS256
-    header = jwt.get_unverified_header(jwt_token)
-    assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
-
-    # Verify the signature verifies with the public key
-    payload = auth.verify_client_assertion(jwt_token, public_pem)
-    assert payload["iss"] == client_id
-    assert payload["sub"] == client_id
-    assert gen_time > 0
-
-
-def test_create_agent_stores_oauth2_signing_key():
-    """create_agent for auth_type=oauth2 must store an RSA private key for access token signing."""
-    import os
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from backend.db.models import Base
-
-    # Isolated test DB
-    test_db_path = "/tmp/test_pkjwt_task25.db"
-    if os.path.exists(test_db_path):
-        os.remove(test_db_path)
-    engine = create_engine(f"sqlite:///{test_db_path}", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
-    TestSession = sessionmaker(bind=engine)
-    db = TestSession()
-
-    try:
-        from backend.db.operations import DatabaseOperations
-        from backend.auth.oauth2 import OAuth2Auth
-
-        db_ops = DatabaseOperations()
-        user = db_ops.create_user(db=db, username="test_pkjwt_task25", email="test_task25@pkj.com", password="pw")
-        agent = db_ops.create_agent(db=db, user_id=user.id, name="Test PKJWT Agent Task25", auth_type="oauth2")
-
-        assert agent.oauth2_private_key is not None, "oauth2_private_key must be stored"
-        assert "-----BEGIN PRIVATE KEY-----" in agent.oauth2_private_key, "Must be PKCS8 PEM"
-
-        # The agent should also have a public key stored (this was already working)
-        assert agent.public_key is not None, "public_key must also be stored"
-        assert "-----BEGIN PUBLIC KEY-----" in agent.public_key, "Must be RSA public PEM"
-
-        # Use the new methods to verify we can sign and verify with the stored key pair
-        oauth2_instance = OAuth2Auth()
-        token, _ = oauth2_instance.create_access_token_with_key(
-            {"sub": str(agent.id)}, agent.oauth2_private_key
-        )
-        payload = oauth2_instance.verify_token_with_public_key(token, agent.public_key)
-        assert payload["sub"] == str(agent.id), "Token must verify with stored public key"
-
-        # Token signed with RS256 (check header)
-        header = jwt.get_unverified_header(token)
-        assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
-    finally:
-        db.close()
+        test_db_path = "/tmp/test_task25_per_agent_key.db"
         if os.path.exists(test_db_path):
             os.remove(test_db_path)
+
+        engine = create_engine(f"sqlite:///{test_db_path}", connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        TestSession = sessionmaker(bind=engine)
+        db = TestSession()
+
+        try:
+            from backend.db.operations import DatabaseOperations
+            from backend.auth.oauth2 import OAuth2Auth
+
+            db_ops = DatabaseOperations()
+            user = db_ops.create_user(db=db, username="test_pkjwt_task25", email="test_task25@pkj.com", password="pw")
+            agent = db_ops.create_agent(db=db, user_id=user.id, name="Test PKJWT Agent Task25", auth_type="oauth2")
+
+            assert agent.oauth2_private_key is not None, "oauth2_private_key must be stored"
+            assert "-----BEGIN PRIVATE KEY-----" in agent.oauth2_private_key, "Must be PKCS8 PEM"
+
+            # The agent should also have a public key stored (this was already working)
+            assert agent.public_key is not None, "public_key must also be stored"
+            assert "-----BEGIN PUBLIC KEY-----" in agent.public_key, "Must be RSA public PEM"
+
+            # Use the new methods to verify we can sign and verify with the stored key pair
+            oauth2_instance = OAuth2Auth()
+            token, _ = oauth2_instance.create_access_token_with_key(
+                {"sub": str(agent.id)}, agent.oauth2_private_key
+            )
+            payload = oauth2_instance.verify_token_with_public_key(token, agent.public_key)
+            assert payload["sub"] == str(agent.id), "Token must verify with stored public key"
+
+            # Token signed with RS256 (check header)
+            header = jwt.get_unverified_header(token)
+            assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
+        finally:
+            db.close()
+            if os.path.exists(test_db_path):
+                os.remove(test_db_path)
