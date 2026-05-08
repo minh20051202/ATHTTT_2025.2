@@ -126,20 +126,18 @@ class OAuth2Auth:
         private_key: str
     ) -> tuple[str, float]:
         """Create a Private Key JWT for client authentication."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         payload = {
             "iss": client_id,
             "sub": client_id,
             "aud": "https://oauth.example.com/token",
-            "iat": now,
-            "exp": now + timedelta(minutes=5),
-            "jti": f"{int(now.timestamp())}"
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(minutes=5)).timestamp()),
+            "jti": f"{int(now.timestamp() * 1000)}"
         }
 
         start_time = time.time()
-        # In a real implementation, this would sign with the private key
-        # For demo, we'll use the shared secret
-        encoded_jwt = jwt.encode(payload, private_key, algorithm=self.algorithm)
+        encoded_jwt = jwt.encode(payload, private_key, algorithm="RS256")
         generation_time = time.time() - start_time
 
         return encoded_jwt, generation_time
