@@ -158,5 +158,56 @@ class OAuth2Auth:
                 "token_size": len(token) if token else 0
             }
 
+    def create_access_token_with_key(
+        self,
+        data: Dict[str, Any],
+        private_key_pem: str,
+        expires_delta: Optional[timedelta] = None
+    ) -> tuple[str, float]:
+        """Create a JWT access token signed with an RSA private key (RS256).
+
+        Args:
+            data: Payload data to encode
+            private_key_pem: RSA PKCS8 private key in PEM format
+            expires_delta: Optional custom expiration time delta
+
+        Returns:
+            (encoded_jwt, generation_time_ms)
+        """
+        start = time.time()
+        to_encode = data.copy()
+        if expires_delta:
+            expire = datetime.now(timezone.utc) + expires_delta
+        else:
+            expire = datetime.now(timezone.utc) + timedelta(minutes=self.expiration_minutes)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode, private_key_pem, algorithm="RS256")
+        return encoded_jwt, time.time() - start
+
+    def verify_token_with_public_key(self, token: str, public_key_pem: str) -> Dict[str, Any]:
+        """Verify and decode a JWT access token using a stored RSA public key (asymmetric RS256).
+
+        Args:
+            token: The JWT access token
+            public_key_pem: RSA public key in PEM format
+
+        Returns:
+            Decoded JWT payload with added `verification_time` field
+
+        Raises:
+            AppError with 401 if token is invalid
+        """
+        start = time.time()
+        try:
+            payload = jwt.decode(token, public_key_pem, algorithms=["RS256"])
+            payload["verification_time"] = time.time() - start
+            return payload
+        except JWTError as e:
+            raise AppError(
+                error_code=ErrorCode.TOKEN_INVALID,
+                message=f"Invalid token: {str(e)}",
+                status_code=401
+            )
+
 
 oauth2_auth = OAuth2Auth()

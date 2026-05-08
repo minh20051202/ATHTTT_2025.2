@@ -3,6 +3,7 @@ from typing import List, Optional
 from .models import User, Agent, Product, Transaction, get_db
 import bcrypt
 import time
+from ..auth.oauth2 import oauth2_auth
 
 
 class DatabaseOperations:
@@ -49,6 +50,20 @@ class DatabaseOperations:
             # - legacy bcrypt-hashed secret (credentials_hash set, public_key=None)
             # - PKJWT (credentials_hash=None, public_key=RSA_pem)
             agent_credentials_hash = credentials_hash  # None is valid for PKJWT variant
+            # PKJWT: generate a per-agent signing keypair (separate from the client-auth keypair)
+            oauth2_public_key, oauth2_private_key = oauth2_auth.create_rsa_keypair()
+            agent = Agent(
+                user_id=user_id,
+                name=name,
+                auth_type=auth_type,
+                credentials_hash=agent_credentials_hash,
+                public_key=oauth2_public_key,
+                oauth2_private_key=oauth2_private_key,
+            )
+            db.add(agent)
+            db.commit()
+            db.refresh(agent)
+            return agent
         else:
             raise ValueError(f"create_agent: unknown auth_type '{auth_type}'. Use 'zkp' or 'oauth2'.")
 

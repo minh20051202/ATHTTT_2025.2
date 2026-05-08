@@ -207,3 +207,51 @@ def test_create_private_key_jwt_uses_rs256():
     assert payload["iss"] == client_id
     assert payload["sub"] == client_id
     assert gen_time > 0
+
+
+def test_create_agent_stores_oauth2_signing_key():
+    """create_agent for auth_type=oauth2 must store an RSA private key for access token signing."""
+    import os
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from backend.db.models import Base
+
+    # Isolated test DB
+    test_db_path = "/tmp/test_pkjwt_task25.db"
+    if os.path.exists(test_db_path):
+        os.remove(test_db_path)
+    engine = create_engine(f"sqlite:///{test_db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    TestSession = sessionmaker(bind=engine)
+    db = TestSession()
+
+    try:
+        from backend.db.operations import DatabaseOperations
+        from backend.auth.oauth2 import OAuth2Auth
+
+        db_ops = DatabaseOperations()
+        user = db_ops.create_user(db=db, username="test_pkjwt_task25", email="test_task25@pkj.com", password="pw")
+        agent = db_ops.create_agent(db=db, user_id=user.id, name="Test PKJWT Agent Task25", auth_type="oauth2")
+
+        assert agent.oauth2_private_key is not None, "oauth2_private_key must be stored"
+        assert "-----BEGIN PRIVATE KEY-----" in agent.oauth2_private_key, "Must be PKCS8 PEM"
+
+        # The agent should also have a public key stored (this was already working)
+        assert agent.public_key is not None, "public_key must also be stored"
+        assert "-----BEGIN PUBLIC KEY-----" in agent.public_key, "Must be RSA public PEM"
+
+        # Use the new methods to verify we can sign and verify with the stored key pair
+        oauth2_instance = OAuth2Auth()
+        token, _ = oauth2_instance.create_access_token_with_key(
+            {"sub": str(agent.id)}, agent.oauth2_private_key
+        )
+        payload = oauth2_instance.verify_token_with_public_key(token, agent.public_key)
+        assert payload["sub"] == str(agent.id), "Token must verify with stored public key"
+
+        # Token signed with RS256 (check header)
+        header = jwt.get_unverified_header(token)
+        assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
+    finally:
+        db.close()
+        if os.path.exists(test_db_path):
+            os.remove(test_db_path)

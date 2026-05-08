@@ -36,6 +36,7 @@ class Agent(Base):
     auth_type = Column(String, nullable=False)  # "oauth2" or "zkp"
     credentials_hash = Column(String, nullable=True)  # NULL for ZKP agents (no client secret), non-NULL for OAuth2
     public_key = Column(Text, nullable=True)  # ZKP public key (ZKSignature) — client holds the secret, server only stores this
+    oauth2_private_key = Column(Text, nullable=True)  # Per-agent PKCS8 RSA private key for signing access tokens (RS256)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="agents")
