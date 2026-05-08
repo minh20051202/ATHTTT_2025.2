@@ -61,7 +61,7 @@ export default function Attacks() {
       const blinkInterval = setInterval(() => {
         blinks++
         setBlinkState(prev => !prev)
-        if (blinks >= 6) {
+        if (blinks >= 3) {
           clearInterval(blinkInterval)
           setOauth2Phase('exfil')
           setBlinkState(false)
@@ -82,11 +82,9 @@ export default function Attacks() {
     if (oauth2Phase === 'idle') return
 
     if (oauth2Phase === 'dim' && zkpPhase === 'idle') {
-      const t = setTimeout(() => {
+      timeoutRefs.current.zkp_start = setTimeout(() => {
         setZkpPhase('pulse')
-        t && (timeoutRefs.current.zkp_pulse = t)
       }, 0)
-      timeoutRefs.current.zkp_start = t
     }
 
     return () => {}
@@ -130,29 +128,7 @@ export default function Attacks() {
     : latestResult.auth_info?.proof
 
   return (
-    <>
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-          20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        @keyframes pulse-scale {
-          0% { transform: scale(1); opacity: 0; }
-          50% { transform: scale(1.2); opacity: 0.4; }
-          100% { transform: scale(1); opacity: 0; }
-        }
-        @keyframes debounce-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
-          50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
-        }
-        @keyframes slide-up {
-          from { transform: translateY(8px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-      `}</style>
-
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'var(--space-8)' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'var(--space-8)' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Attack Simulation</h1>
         <p style={{ fontSize: '14px', color: 'var(--color-muted)', marginBottom: 'var(--space-6)' }}>
           Visualize OAuth2 vulnerabilities vs ZKP protection. Token and proof are loaded from the latest chat session.
@@ -208,12 +184,12 @@ export default function Attacks() {
             marginBottom: 'var(--space-4)',
           }}>
             <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Loaded from latest session — {latestResult.auth_info?.type?.toUpperCase()}
+              Loaded from latest session — {latestResult?.auth_info?.type?.toUpperCase() ?? 'NONE'}
             </div>
             <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text)', wordBreak: 'break-all' }}>
-              {latestResult.auth_info?.type === 'oauth2'
+              {latestResult?.auth_info?.type === 'oauth2'
                 ? `Token: ${(latestResult.auth_info.token || '').slice(0, 30)}...`
-                : `Proof: ${(latestResult.auth_info.proof || '').slice(0, 30)}...`
+                : `Proof: ${(latestResult.auth_info?.proof || '').slice(0, 30)}...`
               }
             </div>
           </div>
@@ -253,7 +229,7 @@ export default function Attacks() {
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '12px',
-              color: blinkState ? '#F59E0B' : 'var(--color-text)',
+              color: blinkState ? 'var(--color-oauth2)' : 'var(--color-text)',
               transition: 'color 0.05s ease',
               marginBottom: 'var(--space-3)',
               wordBreak: 'break-all',
@@ -285,7 +261,7 @@ export default function Attacks() {
                 style={{
                   marginTop: 'var(--space-3)',
                   padding: '8px 16px',
-                  background: replayDebounce ? 'var(--color-muted)' : '#EF4444',
+                  background: replayDebounce ? 'var(--color-muted)' : 'var(--color-attack)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
@@ -386,7 +362,7 @@ export default function Attacks() {
             style={{
               flex: 1,
               padding: 'var(--space-3) var(--space-4)',
-              background: oauth2Phase !== 'idle' ? 'var(--color-muted)' : '#EF4444',
+              background: oauth2Phase !== 'idle' ? 'var(--color-muted)' : 'var(--color-attack)',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
@@ -522,6 +498,5 @@ export default function Attacks() {
           </div>
         )}
       </div>
-    </>
   )
 }
