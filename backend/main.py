@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 import asyncio
 import time
 import json
-import bcrypt
 
 from .utils.config import settings
 from .db.models import init_db, get_db
