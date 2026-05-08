@@ -59,11 +59,11 @@ const terminalContent = {
   ],
 };
 
-function HeroTerminal({ type, title, colorClass }) {
+function HeroTerminal({ type, title }) {
   const content = terminalContent[type];
 
   return (
-    <div className={`terminal-window ${colorClass}`} style={{ borderLeftColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)', borderLeftWidth: '4px' }}>
+    <div className="terminal-window" style={{ borderLeftColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)', borderLeftWidth: '4px' }}>
       <div className="terminal-window-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <span className="status-dot" style={{ backgroundColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)' }} />
@@ -80,31 +80,6 @@ function HeroTerminal({ type, title, colorClass }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function Stepper() {
-  const steps = [
-    { num: '01', title: 'User Initiates Auth', desc: 'Client requests authentication from the server' },
-    { num: '02', title: 'Challenge-Response', desc: 'Server sends unique challenge; client computes proof' },
-    { num: '03', title: 'Verify & Allow', desc: 'Server validates proof without learning the secret' },
-  ];
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '0', width: '100%', overflowX: 'auto', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)' }}>
-      {steps.map((step, i) => (
-        <div key={step.num} style={{ display: 'flex', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '180px' }}>
-            <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 'bold', color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>{step.num}</div>
-            <div style={{ fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', fontWeight: '600', color: 'var(--color-text)', marginTop: 'var(--space-1)' }}>{step.title}</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginTop: 'var(--space-1)', textAlign: 'center' }}>{step.desc}</div>
-          </div>
-          {i < steps.length - 1 && (
-            <div style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl)', marginLeft: 'var(--space-4)', marginRight: 'var(--space-4)', marginTop: 'var(--space-1)', flexShrink: '0' }}>→</div>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
@@ -144,22 +119,14 @@ export default function Landing() {
         </h1>
 
         {/* Dual Console Panels */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)', width: '100%', maxWidth: '80rem', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)' }}>
-          <div style={{ flex: '1' }}>
-            <HeroTerminal type="oauth2" title="OAuth 2.0 Flow" colorClass="border-l-[var(--color-oauth2)]" />
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 'var(--space-8)', width: '100%', maxWidth: '80rem', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)', alignItems: 'stretch' }}>
+          <div style={{ flex: '1', minWidth: 0 }}>
+            <HeroTerminal type="oauth2" title="OAuth 2.0 Flow" />
           </div>
-          <div style={{ flex: '1' }}>
-            <HeroTerminal type="zkp" title="ZKP Auth Flow" colorClass="border-l-[var(--color-zkp)]" />
+          <div style={{ flex: '1', minWidth: 0 }}>
+            <HeroTerminal type="zkp" title="ZKP Auth Flow" />
           </div>
         </div>
-      </section>
-
-      {/* Stepper Section */}
-      <section style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)', borderTop: '1px solid var(--color-border)' }}>
-        <h2 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-sans)', fontWeight: '600', textAlign: 'center', marginBottom: 'var(--space-12)', color: 'var(--color-text)' }}>
-          How ZKP Authentication Works
-        </h2>
-        <Stepper />
       </section>
 
       {/* CTA Tiles */}
