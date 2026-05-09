@@ -4,7 +4,6 @@ import { ChatHistoryProvider } from './context/ChatHistoryContext.jsx'
 import Navbar from './components/Navbar.jsx'
 import Landing from './pages/Landing.jsx'
 import Chat from './pages/Chat.jsx'
-import Compare from './pages/Compare.jsx'
 import Attacks from './pages/Attacks.jsx'
 
 export default function App() {
@@ -17,7 +16,6 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/chat" element={<Chat />} />
-              <Route path="/compare" element={<Compare />} />
               <Route path="/attacks" element={<Attacks />} />
             </Routes>
           </main>

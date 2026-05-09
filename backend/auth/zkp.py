@@ -81,7 +81,7 @@ def create_public_key(secret: str) -> str:
 # ---------------------------------------------------------------------------
 
 _token_store: dict[str, dict] = {}   # token -> {agent_id, commitment, expires}
-_TOKEN_TTL = 60
+_TOKEN_TTL = 300  # 5 minutes — allows user time to type password
 
 
 def cleanup_expired_tokens():

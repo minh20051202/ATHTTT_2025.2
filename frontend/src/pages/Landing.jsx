@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+
 const terminalContent = {
   oauth2: [
     '> Initiating OAuth2 authentication flow...',
@@ -57,44 +59,123 @@ const terminalContent = {
   ],
 };
 
-function HeroTerminal({ type, title }) {
-  const content = terminalContent[type];
+function HeroTerminal({ type, title, className = '' }) {
+  const [started, setStarted] = useState(false)
+  const content = terminalContent[type]
+  const color = type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)'
+
+  useEffect(() => {
+    // Kick off content stagger after terminal shell enters
+    const timer = setTimeout(() => setStarted(true), 80)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
-    <div className="terminal-window" style={{ borderLeftColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)', borderLeftWidth: '4px' }}>
+    <div
+      className={`terminal-window terminal-window--${type} ${className}`}
+      style={{
+        borderLeftColor: color,
+        borderLeftWidth: '4px',
+        opacity: 0, /* start invisible, animation fills from scale(0.95) */
+      }}
+    >
       <div className="terminal-window-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <span className="status-dot" style={{ backgroundColor: type === 'oauth2' ? 'var(--color-oauth2)' : 'var(--color-zkp)' }} />
+          <span
+            className="status-dot"
+            style={{
+              backgroundColor: color,
+              transition: 'transform 160ms ease-out',
+            }}
+          />
           <span className="terminal-title">{title}</span>
         </div>
-        <span className={`badge-${type}`} style={{ fontSize: 'var(--text-xs)', padding: '0 var(--space-2)', paddingTop: '2px', paddingBottom: '2px', borderRadius: '4px', display: 'inline-block' }}>
+        <span
+          className={`badge-${type}`}
+          style={{
+            fontSize: 'var(--text-xs)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            display: 'inline-block',
+          }}
+        >
           {type === 'oauth2' ? 'OAuth 2.0' : 'ZKP'}
         </span>
       </div>
       <div className="terminal-window-content">
         {content.map((line, i) => (
-          <div key={i} style={line.startsWith('> [') ? { color: 'var(--color-muted)' } : {}}>
+          <div
+            key={i}
+            className="terminal-line"
+            style={{
+              color: line.startsWith('> [') ? 'var(--color-muted)' : 'var(--color-text)',
+              transition: 'color 200ms ease',
+            }}
+          >
             {line}
           </div>
         ))}
       </div>
     </div>
-  );
+  )
 }
 
 export default function Landing() {
+  const [heroVisible, setHeroVisible] = useState(false)
+
+  useEffect(() => {
+    // Small delay so paint happens first, then animate in
+    const t = setTimeout(() => setHeroVisible(true), 50)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}>
       {/* Hero Headline */}
-      <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)', paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)' }}>
-        <h1 style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontFamily: 'var(--font-sans)', fontWeight: '700', textAlign: 'center', maxWidth: '48rem', marginBottom: 'var(--space-16)', lineHeight: '1.2' }}>
+      <section
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          padding: 'var(--space-16) var(--space-4)',
+          gap: 'var(--space-12)',
+        }}
+      >
+        {/* Headline: fade + translate up on enter */}
+        <h1
+          style={{
+            fontSize: 'clamp(24px, 5vw, 32px)',
+            fontFamily: 'var(--font-sans)',
+            fontWeight: 700,
+            textAlign: 'center',
+            maxWidth: '48rem',
+            lineHeight: 1.2,
+            color: heroVisible ? 'var(--color-text)' : 'transparent',
+            transform: heroVisible ? 'translateY(0)' : 'translateY(20px)',
+            opacity: heroVisible ? 1 : 0,
+            transition: `transform 400ms var(--ease-out), opacity 400ms var(--ease-out)`,
+            willChange: 'transform, opacity',
+          }}
+        >
           Agent Authentication:{' '}
           <span style={{ color: 'var(--color-oauth2)' }}>OAuth2</span> vs{' '}
           <span style={{ color: 'var(--color-zkp)' }}>Zero-Knowledge Proof</span>
         </h1>
 
         {/* Dual Console Panels */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: 'var(--space-8)', width: '100%', maxWidth: '80rem', paddingLeft: 'var(--space-4)', paddingRight: 'var(--space-4)', alignItems: 'stretch' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 'var(--space-8)',
+            width: '100%',
+            maxWidth: '80rem',
+            padding: '0 var(--space-4)',
+            alignItems: 'stretch',
+          }}
+        >
           <div style={{ flex: '1', minWidth: 0 }}>
             <HeroTerminal type="oauth2" title="OAuth 2.0 Flow" />
           </div>
@@ -104,5 +185,5 @@ export default function Landing() {
         </div>
       </section>
     </div>
-  );
+  )
 }

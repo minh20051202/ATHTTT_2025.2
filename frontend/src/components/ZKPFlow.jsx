@@ -8,7 +8,7 @@ const ZKP_STEPS = [
     num: '1',
     title: 'Challenge Fetch',
     desc: 'GET /zkp-challenge/{id}',
-    detail: 'Server issues challenge token (60s TTL)',
+    detail: 'Server issues challenge token (5min TTL)',
   },
   {
     num: '2',
