@@ -214,8 +214,9 @@ async def oauth2_token_endpoint(
         if not agent.oauth2_private_key:
             # Lazy migration: pre-existing agents from before the per-agent key change
             # have public_key (RSA verification key) but no oauth2_private_key.
-            # Generate and persist one now so the agent can mint tokens.
-            _, private_pem = oauth2_auth.create_rsa_keypair()
+            # Generate and persist a matching keypair so tokens mint and verify correctly.
+            public_pem, private_pem = oauth2_auth.create_rsa_keypair()
+            agent.public_key = public_pem
             agent.oauth2_private_key = private_pem
             db.add(agent)
             db.commit()
