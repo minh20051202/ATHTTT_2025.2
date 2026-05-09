@@ -23,6 +23,7 @@ export default function Chat() {
   const [chatError, setChatError] = useState(null)
   const [result, setResult] = useState(null)
   const [oauth2TokenAcquired, setOauth2TokenAcquired] = useState(false)
+  const [oauth2Credentials, setOauth2Credentials] = useState(null) // { id, privateKey }
 
   // Restore OAuth2 credentials from sessionStorage (survives page refresh,
   // unlike window vars which are reset on remount when multiple Chat instances
@@ -34,6 +35,7 @@ export default function Chat() {
         const { id, privateKey } = JSON.parse(stored)
         window._demoOAuth2AgentId = id
         window._demoPrivateKey = privateKey
+        setOauth2Credentials({ id, privateKey })
         setOauth2TokenAcquired(true)
       } catch {
         sessionStorage.removeItem('demo_oauth2_creds')
@@ -58,6 +60,7 @@ export default function Chat() {
             id: oauth2Agent.id,
             privateKey: oauth2Agent.private_key,
           }))
+          setOauth2Credentials({ id: oauth2Agent.id, privateKey: oauth2Agent.private_key })
           setOauth2TokenAcquired(true)
         }
       } catch (err) {
@@ -67,16 +70,16 @@ export default function Chat() {
     seedAndSetup()
   }, [])
 
-  // Update agent config whenever authType or seed result changes
+  // Update agent config whenever authType or OAuth2 credentials change
   useEffect(() => {
-    if (authType === 'oauth2' && window._demoOAuth2AgentId && window._demoPrivateKey) {
+    if (authType === 'oauth2' && oauth2Credentials) {
       setAgentConfig({
-        agentId: window._demoOAuth2AgentId,
-        privateKeyPem: window._demoPrivateKey,
+        agentId: oauth2Credentials.id,
+        privateKeyPem: oauth2Credentials.privateKey,
         authType: 'oauth2',
       })
     }
-  }, [authType, oauth2TokenAcquired])
+  }, [authType, oauth2Credentials])
 
   // Two-step ZKP flow:
   // 1. GET /api/chat/zkp-challenge/:agent_id → get challenge token
@@ -86,9 +89,9 @@ export default function Chat() {
     e.preventDefault()
     if (!message.trim()) return
     if (!agents) return
-    if (authType === 'oauth2' && (!window._demoOAuth2AgentId || !window._demoPrivateKey)) return
+    if (authType === 'oauth2' && !oauth2Credentials) return
 
-    const agentId = authType === 'oauth2' ? agents.oauth2AgentId : agents.zkpAgentId
+    const agentId = authType === 'oauth2' ? oauth2Credentials.id : agents.zkpAgentId
 
     setSending(true)
     setChatError(null)
@@ -238,7 +241,7 @@ export default function Chat() {
             </div>
             <button
               type="submit"
-              disabled={sending || !message.trim() || (authType === 'oauth2' && (!window._demoOAuth2AgentId || !window._demoPrivateKey))}
+              disabled={sending || !message.trim() || (authType === 'oauth2' && !oauth2Credentials)}
               style={{
                 height: '76px',
                 padding: '0 var(--space-6)',
