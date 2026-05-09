@@ -78,6 +78,9 @@ export default function Chat() {
         privateKeyPem: oauth2Credentials.privateKey,
         authType: 'oauth2',
       })
+    } else if (authType === 'zkp') {
+      // Clear OAuth2 config so chatApi.intent doesn't inject OAuth2 header for ZKP requests
+      setAgentConfig({ authType: 'zkp' })
     }
   }, [authType, oauth2Credentials])
 
