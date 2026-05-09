@@ -10,10 +10,11 @@ import IntentCard from '../components/IntentCard.jsx'
 import AuthInfoPanel from '../components/AuthInfoPanel.jsx'
 import ProofAccordion from '../components/ProofAccordion.jsx'
 import TimingBreakdown from '../components/TimingBreakdown.jsx'
+import BenchmarkCard from '../components/BenchmarkCard.jsx'
 
 export default function Chat() {
   const { agents, loading: agentsLoading } = useAgents()
-  const { latestResult } = useChatHistory()
+  const { storeResult } = useChatHistory()
 
   const [authType, setAuthType] = useState('oauth2') // 'oauth2' | 'zkp'
   const [message, setMessage] = useState('')
@@ -23,6 +24,23 @@ export default function Chat() {
   const [result, setResult] = useState(null)
   const [oauth2TokenAcquired, setOauth2TokenAcquired] = useState(false)
 
+  // Restore OAuth2 credentials from sessionStorage (survives page refresh,
+  // unlike window vars which are reset on remount when multiple Chat instances
+  // race on demoApi.seed() and only the first gets the private_key back).
+  useEffect(() => {
+    const stored = sessionStorage.getItem('demo_oauth2_creds')
+    if (stored) {
+      try {
+        const { id, privateKey } = JSON.parse(stored)
+        window._demoOAuth2AgentId = id
+        window._demoPrivateKey = privateKey
+        setOauth2TokenAcquired(true)
+      } catch {
+        sessionStorage.removeItem('demo_oauth2_creds')
+      }
+    }
+  }, [])
+
   // Seed to get OAuth2 agent + key (one-time per session)
   useEffect(() => {
     async function seedAndSetup() {
@@ -31,13 +49,15 @@ export default function Chat() {
         // Seed returns demo data including oauth2_agent with private_key
         // In a real app: instructor provides the private_key out-of-band.
         // For demo, the seed endpoint returns it once.
-        // We don't persist this in state; the Chat component relies on getAccessToken
-        // in authApi.js which fetches it again if needed.
         const oauth2Agent = seedRes?.data?.oauth2_agent || seedRes?.data
         if (oauth2Agent?.private_key) {
-          // Store in window for the demo (refetched on each page load)
-          window._demoPrivateKey = oauth2Agent.private_key
+          // Persist so refresh / concurrent mounts still work
           window._demoOAuth2AgentId = oauth2Agent.id
+          window._demoPrivateKey = oauth2Agent.private_key
+          sessionStorage.setItem('demo_oauth2_creds', JSON.stringify({
+            id: oauth2Agent.id,
+            privateKey: oauth2Agent.private_key,
+          }))
           setOauth2TokenAcquired(true)
         }
       } catch (err) {
@@ -66,6 +86,7 @@ export default function Chat() {
     e.preventDefault()
     if (!message.trim()) return
     if (!agents) return
+    if (authType === 'oauth2' && (!window._demoOAuth2AgentId || !window._demoPrivateKey)) return
 
     const agentId = authType === 'oauth2' ? agents.oauth2AgentId : agents.zkpAgentId
 
@@ -75,6 +96,7 @@ export default function Chat() {
       if (authType === 'oauth2') {
         const res = await chatApi.intent({ message, agent_id: agentId })
         setResult(res.data)
+        storeResult(res.data)
       } else {
         if (!password.trim()) {
           setChatError('Password is required for ZKP authentication')
@@ -108,6 +130,7 @@ export default function Chat() {
           zkp_proof: proofString,
         })
         setResult(res.data)
+        storeResult(res.data)
       }
     } catch (err) {
       setChatError(err.message)
@@ -215,7 +238,7 @@ export default function Chat() {
             </div>
             <button
               type="submit"
-              disabled={sending || !message.trim()}
+              disabled={sending || !message.trim() || (authType === 'oauth2' && (!window._demoOAuth2AgentId || !window._demoPrivateKey))}
               style={{
                 height: '76px',
                 padding: '0 var(--space-6)',
@@ -250,6 +273,9 @@ export default function Chat() {
           <strong>Authentication error:</strong> {chatError}
         </div>
       )}
+
+      {/* Live benchmark card — shows when any auth has been run */}
+      <BenchmarkCard />
 
       {/* Results area: ghost (empty) OR populated */}
       {!displayResult ? (
