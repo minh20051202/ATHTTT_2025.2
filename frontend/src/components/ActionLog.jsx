@@ -330,14 +330,7 @@ export default function ActionLog({ authType, latestResult, tokenCached, credent
           }}>
             Action Log
           </span>
-          <span style={{
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--color-muted)',
-          }}>
-            {authType === 'oauth2' ? 'OAuth2 PKJWT' : 'ZKP Schnorr'}
-          </span>
-        </div>
+          </div>
 
         {/* Steps container — scrollable */}
         <div style={{

@@ -356,6 +356,16 @@ input::placeholder, textarea::placeholder {
   }
 }
 
+/* === CHAT BUBBLE ENTRANCE === */
+@keyframes bubble-enter-right {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes bubble-enter-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* === CHAT LAYOUT GRID (two-column: ChatThread | ComputationSidebar) === */
 .chat-layout-grid {
   display: grid;

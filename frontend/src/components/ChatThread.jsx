@@ -36,7 +36,10 @@ function UserBubble({ content, authType }) {
     ? 'rgba(16, 185, 129, 0.3)'
     : 'rgba(245, 158, 11, 0.3)'
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <div style={{
+      display: 'flex', justifyContent: 'flex-end',
+      animation: 'bubble-enter-right 200ms var(--ease-out) both',
+    }}>
       <div style={{
         maxWidth: '72%', padding: '12px 16px',
         background: bg, border: `1px solid ${borderColor}`,
@@ -71,7 +74,7 @@ function AgentBubble({ intent, execResult, authType }) {
     : null
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+    <div style={{ display: 'flex', justifyContent: 'flex-start', animation: 'bubble-enter-left 200ms var(--ease-out) both' }}>
       <div style={{
         maxWidth: '72%', padding: '12px 16px',
         background: 'var(--color-surface)',
@@ -89,7 +92,7 @@ function AgentBubble({ intent, execResult, authType }) {
 }
 
 /* ─── Chat Input ─── */
-function ChatInput({ message, setMessage, password, setPassword, onSend, sending, authType }) {
+function ChatInput({ message, setMessage, password, setPassword, onSend, sending, authType, disabled }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {authType === 'zkp' && (
@@ -117,14 +120,14 @@ function ChatInput({ message, setMessage, password, setPassword, onSend, sending
           }}
         />
         <button
-          onClick={onSend} disabled={sending || !message.trim()}
+          onClick={onSend} disabled={disabled || sending || !message.trim()}
           style={{
             height: '52px', padding: '0 20px',
-            background: sending ? 'var(--color-muted)' : 'var(--color-primary)',
+            background: disabled || sending ? 'var(--color-muted)' : 'var(--color-primary)',
             color: 'white', border: 'none', borderRadius: '8px',
-            fontWeight: 600, fontSize: '14px', cursor: sending ? 'not-allowed' : 'pointer',
+            fontWeight: 600, fontSize: '14px', cursor: disabled || sending ? 'not-allowed' : 'pointer',
             transition: 'background 0.15s ease',
-            opacity: sending ? 0.6 : 1,
+            opacity: disabled || sending ? 0.6 : 1,
           }}
         >
           {sending ? '…' : 'Send'}
@@ -135,7 +138,7 @@ function ChatInput({ message, setMessage, password, setPassword, onSend, sending
 }
 
 /* ─── ChatThread ─── */
-export default function ChatThread({ authType, messages, sending, onSend, message, setMessage, password, setPassword }) {
+export default function ChatThread({ authType, messages, sending, onSend, message, setMessage, password, setPassword, disabled }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -177,6 +180,7 @@ export default function ChatThread({ authType, messages, sending, onSend, messag
           message={message} setMessage={setMessage}
           password={password} setPassword={setPassword}
           onSend={onSend} sending={sending} authType={authType}
+          disabled={disabled}
         />
       </div>
     </div>
