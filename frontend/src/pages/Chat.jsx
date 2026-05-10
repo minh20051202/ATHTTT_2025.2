@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAgents } from '../context/AgentsContext.jsx'
 import { useChatHistory } from '../context/ChatHistoryContext.jsx'
 import { chatApi, setAgentConfig } from '../services/chatApi.js'
+import { getAccessToken } from '../services/authApi.js'
 import { demoApi } from '../services/demoApi.js'
 import { computeProof } from '../lib/zkp.js'
 import { generateRSAKeyPair } from '../lib/oauth2.js'
@@ -11,7 +12,7 @@ import IntentCard from '../components/IntentCard.jsx'
 import AuthInfoPanel from '../components/AuthInfoPanel.jsx'
 import ProofAccordion from '../components/ProofAccordion.jsx'
 import TimingBreakdown from '../components/TimingBreakdown.jsx'
-import BenchmarkCard from '../components/BenchmarkCard.jsx'
+import ChatTrace from '../components/ChatTrace.jsx'
 
 export default function Chat() {
   const { agents, loading: agentsLoading } = useAgents()
@@ -25,6 +26,12 @@ export default function Chat() {
   const [result, setResult] = useState(null)
   const [oauth2TokenAcquired, setOauth2TokenAcquired] = useState(false)
   const [oauth2Credentials, setOauth2Credentials] = useState(null) // { id, privateKey }
+  const [chatCredentials, setChatCredentials] = useState({
+    bearerToken: '',
+    tokenExpAt: 0,
+    agentId: null,
+    zkpProof: '',
+  })
 
   // Restore OAuth2 credentials from sessionStorage (survives page refresh,
   // unlike window vars which are reset on remount when multiple Chat instances
@@ -109,6 +116,14 @@ export default function Chat() {
         const res = await chatApi.intent({ message, agent_id: agentId })
         setResult(res.data)
         storeResult(res.data)
+        // Update ChatTrace credentials after successful OAuth2 auth
+        const bearerToken = await getAccessToken(oauth2Credentials.id, oauth2Credentials.privateKey)
+        setChatCredentials(prev => ({
+          ...prev,
+          bearerToken: bearerToken || '',
+          tokenExpAt: 0,
+          agentId: agentId,
+        }))
       } else {
         if (!password.trim()) {
           setChatError('Password is required for ZKP authentication')
@@ -143,6 +158,12 @@ export default function Chat() {
         })
         setResult(res.data)
         storeResult(res.data)
+        // Update ChatTrace credentials after successful ZKP auth
+        setChatCredentials(prev => ({
+          ...prev,
+          zkpProof: proofString,
+          agentId: agentId,
+        }))
       }
     } catch (err) {
       setChatError(err.message)
@@ -286,8 +307,8 @@ export default function Chat() {
         </div>
       )}
 
-      {/* Live benchmark card — shows when any auth has been run */}
-      <BenchmarkCard />
+      {/* ChatTrace — dual auth comparison with step log + metrics */}
+      <ChatTrace authType={authType} credentials={chatCredentials} />
 
       {/* Results area: ghost (empty) OR populated */}
       {!displayResult ? (
