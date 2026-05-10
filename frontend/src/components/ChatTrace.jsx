@@ -1,21 +1,16 @@
-/**
- * ChatTrace — two-column wrapper: ActionLog (left) + MetricsPanel (right).
- * Renders side-by-side auth comparison with live metrics.
- */
 import { useChatHistory } from '../context/ChatHistoryContext.jsx'
 import ActionLog from './ActionLog.jsx'
 import MetricsPanel from './MetricsPanel.jsx'
 
-export default function ChatTrace({ authType, credentials }) {
-  const { latestResult } = useChatHistory()
-
+export default function ChatTrace({ authType, latestResult, messageCount }) {
+  const { latestResult: fromContext } = useChatHistory()
+  const result = latestResult !== undefined ? latestResult : fromContext
   return (
     <div className="chat-trace-grid">
       <ActionLog
-        key={authType}
         authType={authType}
-        latestResult={latestResult}
-        credentials={credentials}
+        latestResult={result}
+        messageCount={messageCount ?? 0}
       />
       <MetricsPanel />
     </div>
