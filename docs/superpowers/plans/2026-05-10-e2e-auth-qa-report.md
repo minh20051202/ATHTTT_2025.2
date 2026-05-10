@@ -46,20 +46,16 @@
 - **Fix applied:** Cleared `sessionStorage.demo_agents` and `demo_oauth2_creds` to force re-seed with fresh IDs
 - **Note:** Requires either page reload after DB reseed OR clearing sessionStorage before re-seeding
 
-### Bug 4: ZKP proof verification math failure (UNRESOLVED — separate issue)
-- **Files:** `backend/auth/zkp.py` (particularly `_verify_schnorr` at line ~132 and domain parameters at line ~33)
-- **Symptom:** After fixing Q and reseeding DB, browser ZKP flow still returns "ZKP proof verification failed" (401). Test `test_sign_data_produces_valid_proof` also fails with `is_valid=False`.
-- **Root cause (identified):** The Schnorr verification equation `g^s ≡ t·y^c (mod p)` fails even when both `sign_data` and `verify_proof` use identical `_DHQ`. Verified with Python debug:
-  - `create_public_key`: uses `x = H(password) mod q`, `y = g^x mod p` ✅
-  - `sign_data`: uses same `x = hash_secret(password) mod q`, computes `c = H(t||token) mod q`, `s = r + c·x mod q` ✅
-  - `verify_proof` (via `_verify_schnorr`): recalculates `c = H(t||token) mod q` and checks `g^s = t·y^c mod p` — FAILS ❌
-- The math is self-consistent within the module but the verification fails. Possible causes:
-  1. `g=4` may not properly generate the order-`_DHQ` subgroup for this specific safe prime (257-bit)
-  2. The challenge derivation `c = H(t||token)` uses token as a string; same bytes are used in sign and verify (verified)
-  3. The domain parameters themselves may need adjustment for the given `g=4` generator
-- The `g^q mod p` property (`g` generates order-`q` subgroup check) should be verified for this safe prime
-- **Backend startup:** Backend is running from project root using `uv run uvicorn backend.main:app` (not `backend/` directory) ✅
-- **Status:** NOT FIXED in this session — requires separate debugging of the Schnorr group parameters
+### Bug 4: ZKP Schnorr verification math (RESOLVED ✅)
+- **Files:** `backend/auth/zkp.py:33-34` (`_DHQ` / `_DHP`), `frontend/src/lib/zkp.js:18` (Q)
+- **Symptom:** `g^s ≡ t·y^c (mod p)` verification returned `is_valid=False` in tests and browser
+- **Root cause (identified):** The original `_DHQ` in `fa762e8` (before this session) used `...686...` at position 48 — WRONG. `(p-1)//2 = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cff` — position 48 is `7`, not `6`. The `fa762e8` commit corrected both backend and frontend to `...786...`.
+- **Fix:** Both `backend/auth/zkp.py` and `frontend/src/lib/zkp.js` now have `_DHQ`/`Q` = `0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cffn`. DB reseeded (new ZKP agent ID 13) so stored public keys computed with correct Q.
+- **Verification:** `pytest tests/test_zkp.py` → 16/16 passed ✅. Browser ZKP flow → proof verified, reached LLM call (429 from NVIDIA is external rate limit, not auth failure) ✅
+- **Status:** ✅ FULLY RESOLVED as of `fa762e8` commit
+
+### Bug 5: ZKP proof verification math failure (RESOLVED — duplicate of Bug 4, already fixed)
+- The report filed during Task 1 (before `fa762e8` landed) documented "Bug 4" as unresolved. This is now confirmed as the same root cause as Bug 4 — the Q constant at position 48. `fa762e8` fixed it. No separate Bug 5 needed.
 
 ---
 
@@ -69,9 +65,9 @@
 
 | Test Suite | Result | Notes |
 |------------|--------|-------|
-| `pytest tests/test_zkp.py` | 11 passed, 5 failed | See failures below |
+| `pytest tests/test_zkp.py` | 16 passed, 0 failed | ✅ All ZKP tests pass (including `test_sign_data_produces_valid_proof`) |
 | `pytest tests/test_oauth2.py` | 11 passed, 0 failed | ✅ All OAuth2 tests pass |
-| ZKP failures | 5 | All `test_sign_data_produces_valid_proof`, `test_zkp_chat_full_flow`, `test_zkp_proof_replay_rejected`, `test_zkp_timing_metrics`, `test_server_never_receives_password` — caused by Bug 4 |
+| Browser ZKP | ✅ proof verified, reached LLM | 429 NVIDIA rate limit is external, not auth |
 
 ### Browser E2E
 
@@ -84,13 +80,13 @@
 - Result shows 2 products (Laptop, Phone) with prices ✅
 - **Note:** NIM API rate limit caused `Provider rate limit reached` in display output, but auth succeeded and intent was extracted
 
-#### ZKP Flow — ❌ FAIL
+#### ZKP Flow — ✅ PASS
 - Selected ZKP tab, filled password `zkp_password_456` and message `Search for headphones`
 - GET `/api/chat/zkp-challenge/{new_id}` → 200 (challenge token fetched) ✅
-- POST `/api/chat/intent` → 401 Unauthorized ✅
-- Error: "ZKP proof verification failed" ❌
-- **Root cause:** Bug 4 — Schnorr verification math fails in `_verify_schnorr` even with correct Q
-- The challenge token was fetched successfully (agent ID resolved correctly) — but proof is rejected by the verification
+- POST `/api/chat/intent` with `zkp_token` + `zkp_proof` → 200 ✅
+- Proof accepted: `g^s ≡ t·y^c (mod p)` verifies correctly ✅
+- Reached LLM call — "Provider rate limit reached" (429 from NVIDIA NIM API) is external infrastructure, not auth failure ✅
+- DB now has fresh ZKP agent with public key computed from correct Q ✅
 
 ---
 
