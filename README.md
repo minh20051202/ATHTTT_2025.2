@@ -15,36 +15,26 @@ Educational demo: **OAuth2 PKJWT** vs **ZKP (Schnorr)** authentication for AI ag
 ### 1. Backend
 
 ```bash
-./start-backend.sh
+make backend
 ```
 
-This kills any existing backend on port 8000, starts a fresh one, waits for it to be ready, and hits `/health`.
-
-**What it does:**
-```bash
-cd backend
-PYTHONPATH=. uv run uvicorn backend.main:app --port 8000 --host 0.0.0.0
-```
-
-**Verify:**
-```bash
-curl http://localhost:8000/health
-```
-
-**Seed the demo data** (creates demo user, OAuth2 agent, ZKP agent, 4 products):
-```bash
-curl -X POST http://localhost:8000/api/demo/seed
-```
+Kills any existing backend on port 8000, starts fresh, waits for ready, hits `/health`.
 
 ### 2. Frontend
 
 ```bash
-cd frontend
-npm install
-npm run dev
+make frontend
 ```
 
 Opens at `http://localhost:5173`.
+
+### 3. Seed demo data
+
+```bash
+make seed
+```
+
+Creates demo user, OAuth2 agent, ZKP agent, 4 products.
 
 ---
 
@@ -100,19 +90,9 @@ OAuth2 agent:  oauth2_private_key=NULL, public_key=set (registered by client)
 
 ## Running Tests
 
-### Backend
-
 ```bash
-cd backend
-pytest -v
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm run build    # production build
-npm run dev      # dev server with HMR
+make test-backend   # backend pytest
+make test-frontend # frontend production build
 ```
 
 ---
@@ -147,3 +127,20 @@ Watch the **Action Log** (left panel) for step-by-step detail and the **Live Met
 |---------|------|
 | Backend (FastAPI) | 8000 |
 | Frontend (Vite) | 5173 |
+
+---
+
+## Makefile Targets
+
+```bash
+make help          # list all targets
+make up            # backend (bg) + frontend (fg)
+make backend       # start backend only
+make backend-log   # tail /tmp/backend.log
+make frontend      # start frontend dev server
+make seed          # curl POST /api/demo/seed
+make test-backend   # pytest -v
+make test-frontend # npm run build
+make install       # npm install (frontend deps)
+make kill          # stop all servers
+```
