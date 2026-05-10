@@ -31,7 +31,7 @@ import json
 # For production: use FIPS 186-5 parameters (e.g., 2048-bit or 3072-bit)
 # ---------------------------------------------------------------------------
 _DHP = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-_DHQ = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
+_DHQ = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cff
 _DHG = 0x4
 _EXTERNAL_DHP = _DHP
 _EXTERNAL_DHQ = _DHQ

@@ -15,7 +15,7 @@
 // Domain parameters (shared with server)
 // ---------------------------------------------------------------------------
 const P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ffn;
-const Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cffn;
+const Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cffn;
 const G = 4n;
 
 // ---------------------------------------------------------------------------
