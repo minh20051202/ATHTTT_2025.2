@@ -355,3 +355,22 @@ input::placeholder, textarea::placeholder {
     grid-template-columns: 1fr;
   }
 }
+
+/* === CHAT LAYOUT GRID (two-column: ChatThread | ComputationSidebar) === */
+.chat-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: var(--space-6);
+  height: calc(100vh - var(--navbar-height));
+  padding: var(--space-4) var(--space-6);
+  align-items: start;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .chat-layout-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: auto;
+  }
+}
