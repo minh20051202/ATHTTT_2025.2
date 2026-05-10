@@ -255,13 +255,13 @@ const GREETING_STEP = {
 // Main ActionLog component
 // ---------------------------------------------------------------------------
 
-export default function ActionLog({ authType, latestResult, tokenCached, credentials }) {
+export default function ActionLog({ authType, latestResult, tokenCached, credentials, messageCount = 0 }) {
   const [expandedSteps, setExpandedSteps] = useState({})
   const bottomRef = useRef(null)
   const prevStepsLen = useRef(0)
 
-  // Determine if this is the initial mounted state (no steps yet)
-  const isInitial = !latestResult?.steps?.length
+  // Determine if this is the initial mounted state (no messages yet)
+  const isInitial = messageCount === 0
 
   // Build the step list based on auth type and response data
   const rawSteps = isInitial
