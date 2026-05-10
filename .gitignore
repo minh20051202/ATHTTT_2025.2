@@ -46,3 +46,4 @@ Thumbs.db
 debug_*.db
 *.log
 
+.gstack/

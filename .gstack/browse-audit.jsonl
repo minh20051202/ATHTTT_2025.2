@@ -1,81 +1,550 @@
-{"ts":"2026-05-04T06:07:05.955Z","cmd":"goto","args":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","origin":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","durationMs":1190,"status":"ok","hasCookies":false,"mode":"launched"}
-{"ts":"2026-05-04T06:07:10.230Z","cmd":"text","args":"","origin":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","durationMs":12,"status":"ok","hasCookies":false,"mode":"launched"}
-{"ts":"2026-05-04T06:11:36.820Z","cmd":"goto","args":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","origin":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","durationMs":412,"status":"ok","hasCookies":false,"mode":"launched"}
-{"ts":"2026-05-04T06:11:54.981Z","cmd":"text","args":"","origin":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","durationMs":8,"status":"ok","hasCookies":false,"mode":"launched"}
-{"ts":"2026-05-04T06:12:05.986Z","cmd":"snapshot","args":"-s article","origin":"https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/","durationMs":77,"status":"ok","hasCookies":false,"mode":"launched"}
-{"ts":"2026-05-08T08:02:12.637Z","cmd":"status","args":"","origin":"http://127.0.0.1:34567/welcome","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:02:45.471Z","cmd":"status","args":"","origin":"http://127.0.0.1:34567/welcome","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:04:08.437Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":626,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:04:35.172Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/attacks","durationMs":30,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:05:43.543Z","cmd":"eval","args":"document.body.innerHTML.slice(0, 500)","origin":"http://localhost:5173/attacks","durationMs":2,"status":"error","hasCookies":false,"mode":"headed","error":"File not found: document.body.innerHTML.slice(0, 500)"}
-{"ts":"2026-05-08T08:06:28.294Z","cmd":"console","args":"","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:06:47.037Z","cmd":"eval","args":"--help","origin":"http://localhost:5173/attacks","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"File not found: --help"}
-{"ts":"2026-05-08T08:08:26.168Z","cmd":"js","args":"","origin":"http://localhost:5173/attacks","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Usage: browse js <expression>"}
-{"ts":"2026-05-08T08:12:28.052Z","cmd":"status","args":"","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:12:46.181Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:15.711Z","cmd":"js","args":"document.getElementById('root')?.children?.length","origin":"http://localhost:5173/attacks","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:15.737Z","cmd":"js","args":"document.getElementById('root')?.innerHTML?.slice(0, 800)","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:32.881Z","cmd":"url","args":"","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:32.908Z","cmd":"js","args":"document.title","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:32.936Z","cmd":"html","args":"","origin":"http://localhost:5173/attacks","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:49.818Z","cmd":"reload","args":"","origin":"http://localhost:5173/attacks","durationMs":245,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:51.866Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:13:51.914Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/attacks","durationMs":19,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:14:21.316Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:14:37.825Z","cmd":"js","args":"document.body.innerHTML.slice(0, 1000)","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:14:52.044Z","cmd":"html","args":"","origin":"http://localhost:5173/attacks","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:15:43.571Z","cmd":"console","args":"","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:37:30.242Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":282,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:37:40.828Z","cmd":"js","args":"document.getElementById('root').innerHTML.slice(0,500)","origin":"http://localhost:5173/attacks","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:39:39.511Z","cmd":"html","args":"","origin":"http://localhost:5173/attacks","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:39:50.720Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:41:22.606Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:43:35.684Z","cmd":"reload","args":"","origin":"http://localhost:5173/attacks","durationMs":235,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:43:38.722Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:43:38.751Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:43:46.513Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:43:57.900Z","cmd":"js","args":"document.body.innerHTML.slice(0,1000)","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:45:21.011Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/attacks","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:45:23.042Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:45:29.636Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:47:01.959Z","cmd":"js","args":"\n(async () => {\n  try {\n    const { createRoot } = await import('/node_modules/react-dom/client.js');\n    const root = document.getElementById('root');\n    await new Promise(r => setTimeout(r, 2000));…","origin":"http://localhost:5173/attacks","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:47:11.133Z","cmd":"js","args":"document.getElementById('root').children.length + '|' + document.title","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:48:24.350Z","cmd":"screenshot","args":"/tmp/attacks_page.png","origin":"http://localhost:5173/attacks","durationMs":139,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:50:21.411Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":148,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:50:24.444Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:50:34.027Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:53:16.907Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:53:17.106Z","cmd":"goto","args":"http://localhost:5173/","origin":"http://localhost:5173/","durationMs":170,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:53:20.153Z","cmd":"text","args":"","origin":"http://localhost:5173/","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:53:31.634Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:53:44.180Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":157,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:53:47.216Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:54:05.985Z","cmd":"html","args":"","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:54:13.674Z","cmd":"js","args":"document.body.innerHTML.slice(0,500)","origin":"http://localhost:5173/attacks","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:57:04.472Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:57:04.811Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":284,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:57:06.846Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:57:19.781Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":142,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:57:22.822Z","cmd":"text","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:58:12.177Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":249,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:58:32.276Z","cmd":"goto","args":"http://localhost:5173/compare","origin":"http://localhost:5173/compare","durationMs":130,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T08:58:35.308Z","cmd":"text","args":"","origin":"http://localhost:5173/compare","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:01:22.488Z","cmd":"reload","args":"","origin":"http://localhost:5173/compare","durationMs":140,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:01:25.530Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/compare","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:01:25.706Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":145,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:01:28.747Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:03:05.738Z","cmd":"reload","args":"","origin":"http://localhost:5173/attacks","durationMs":182,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:03:08.777Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:03:08.963Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":156,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:03:11.997Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:03:25.386Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:04:59.965Z","cmd":"reload","args":"","origin":"http://localhost:5173/attacks","durationMs":257,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:05:03.004Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:05:03.037Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:05:16.999Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":147,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:05:20.033Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:06:28.733Z","cmd":"newtab","args":"","origin":"about:blank","durationMs":234,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:06:29.074Z","cmd":"goto","args":"http://localhost:5173/attacks","origin":"http://localhost:5173/attacks","durationMs":284,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:06:31.125Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:06:33.155Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/attacks","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
-{"ts":"2026-05-08T09:06:42.398Z","cmd":"text","args":"","origin":"http://localhost:5173/attacks","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T04:21:27.851Z","cmd":"status","args":"","origin":"about:blank","durationMs":3,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:21:36.868Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":240,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:21:36.982Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/","durationMs":43,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:21:48.905Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:21:48.932Z","cmd":"console","args":"","origin":"http://localhost:5173/","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:21:59.507Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":31,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:22:01.539Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":7,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:22:08.731Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":37,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:22:11.762Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:22:36.841Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:27:39.139Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":153,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:27:41.170Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:27:41.195Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":1,"status":"error","hasCookies":false,"mode":"launched","error":"Ref @e8 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T04:27:44.219Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:28:08.073Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":151,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:28:10.121Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":16,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:28:21.570Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":36,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:28:28.536Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:29:39.413Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":146,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:29:42.439Z","cmd":"console","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:29:42.478Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":14,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:29:54.899Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":36,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:29:58.929Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:30:14.871Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:30:14.896Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:42:21.306Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":147,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:42:24.348Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":15,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:42:47.081Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":33,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T04:42:52.112Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:03:07.099Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:03:22.531Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:04:07.014Z","cmd":"goto","args":"http://localhost:5173/","origin":"http://localhost:5173/","durationMs":121,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:04:12.062Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/","durationMs":15,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:04:31.402Z","cmd":"goto","args":"http://localhost:5173/","origin":"http://localhost:5173/","durationMs":105,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:04:34.444Z","cmd":"snapshot","args":"-d 1","origin":"http://localhost:5173/","durationMs":11,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:04:49.421Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":128,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:04:53.474Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:05:07.667Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":36,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:05:13.696Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:05:22.557Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:05:22.686Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":102,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:05:27.725Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:05:54.977Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":130,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:06:01.010Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:07:46.402Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":119,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:07:48.431Z","cmd":"storage","args":"","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:07:58.848Z","cmd":"storage","args":"set demo_agents null","origin":"http://localhost:5173/chat","durationMs":16,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:07:58.872Z","cmd":"storage","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:08:27.326Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":99,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:08:29.363Z","cmd":"js","args":"sessionStorage.removeItem('demo_agents'); JSON.stringify(sessionStorage)","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T05:59:59.596Z","cmd":"reload","args":"","origin":"about:blank","durationMs":8,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:00:04.650Z","cmd":"snapshot","args":"-i","origin":"about:blank","durationMs":25,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:08:59.380Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":173,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:09:04.427Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:09:16.873Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:09:16.898Z","cmd":"js","args":"sessionStorage.getItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:09:30.240Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":36,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:09:36.270Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:10:04.052Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":120,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:10:08.085Z","cmd":"js","args":"sessionStorage.removeItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:10:08.224Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":115,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T06:10:14.269Z","cmd":"js","args":"sessionStorage.getItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:35:57.541Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":269,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:36:01.659Z","cmd":"js","args":"sessionStorage.removeItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:36:05.984Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":114,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:36:39.617Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":30,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:38:04.888Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":37,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:38:45.946Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":7,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:38:55.056Z","cmd":"js","args":"console.log(JSON.stringify(Object.keys(JSON.parse(sessionStorage.getItem('demo_agents')||'{}'))))","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:39:01.963Z","cmd":"js","args":"sessionStorage.getItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:39:15.280Z","cmd":"js","args":"document.querySelector('[data-testid=\"send-button\"]')?.disabled","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:39:22.382Z","cmd":"js","args":"window.__debugTokens || 'no debug'","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:39:28.403Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:39:48.723Z","cmd":"js","args":"document.querySelector('#oauth2-agent-btn') ? 'found' : 'not found' + ', send btn disabled: ' + document.querySelector('button[class*=\"Send\"]')?.disabled","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:40:01.596Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:40:42.082Z","cmd":"js","args":"JSON.stringify({oauth2TokenAcquired: window._demoOAuth2AgentId ? true : false, hasPrivateKey: !!window._demoPrivateKey, agentId: window._demoOAuth2AgentId, authType: window._agentConfig?.authType })","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:41:08.493Z","cmd":"js","args":"const btn = document.querySelector('button[type=\"submit\"]'); JSON.stringify({disabled: btn?.disabled, text: btn?.textContent?.trim(), sending: document.querySelector('[data-sending]')?.dataset?.sendin…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:41:42.922Z","cmd":"js","args":"JSON.stringify({_demoPrivateKey: window._demoPrivateKey ? window._demoPrivateKey.slice(0, 50) + '...' : null, _demoOAuth2AgentId: window._demoOAuth2AgentId, _agentConfig: window._agentConfig, oauth2To…","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:43:56.299Z","cmd":"js","args":"const inputs = document.querySelectorAll('input, textarea'); inputs.forEach(el => console.log(el.outerHTML.slice(0, 200)))","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:44:35.041Z","cmd":"state","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"launched","error":"Usage: state save|load <name>"}
+{"ts":"2026-05-09T07:44:46.950Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":129,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T07:44:53.139Z","cmd":"js","args":"JSON.stringify({sessionDemo: sessionStorage.getItem('demo_agents')})","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:05:12.571Z","cmd":"type","args":"@e6 test message","origin":"http://localhost:5173/chat","durationMs":24,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:05:19.364Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":18,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:06:22.588Z","cmd":"js","args":"JSON.stringify({agentConfig: window._agentConfig})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:07:01.701Z","cmd":"js","args":"({msgLen: document.querySelector('textarea')?.value?.length, sendBtnDisabled: document.querySelector('button[type=\"submit\"]')?.disabled, windowVars: {agentId: window._demoOAuth2AgentId, hasKey: !!wind…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:07:37.698Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":87,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:07:39.733Z","cmd":"js","args":"({windowVars: {agentId: window._demoOAuth2AgentId, hasKey: !!window._demoPrivateKey, tokenAcquired: window._oauth2TokenAcq}, session: sessionStorage.getItem('demo_agents')})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:08:09.741Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:09:07.637Z","cmd":"js","args":"console.log('window vars:', JSON.stringify({agentId: window._demoOAuth2AgentId, key: !!window._demoPrivateKey, config: !!window._agentConfig}))","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:09:11.849Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:10:42.656Z","cmd":"goto","args":"about:blank","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"launched","error":"Blocked: scheme \"about:\" is not allowed. Only http:, https:, and file: URLs are permitted."}
+{"ts":"2026-05-09T08:12:27.483Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":110,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:12:32.516Z","cmd":"js","args":"document.querySelector('textarea') ? 'textarea:true' : 'textarea:false'","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:12:44.664Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:12:54.954Z","cmd":"js","args":"JSON.stringify({agentId: window._demoOAuth2AgentId, hasKey: !!window._demoPrivateKey, config: !!window._agentConfig, tokenSet: !!window._oauth2TokenAcquired})","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:38:41.560Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":4528,"status":"error","hasCookies":false,"mode":"launched","error":"click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Send' })\u001b[22m\n\u001b[2m    - locator resolved to <button disabled type=\"submit\">Send</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m   …"}
+{"ts":"2026-05-09T08:38:51.634Z","cmd":"fill","args":"@e6 test message","origin":"http://localhost:5173/chat","durationMs":24,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:39:01.970Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:39:21.836Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":61,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:39:35.044Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":7,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:39:51.027Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:40:33.959Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:40:47.468Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:42:01.421Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:48:47.087Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":152,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:48:52.518Z","cmd":"js","args":"sessionStorage.removeItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:49:01.645Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":114,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:49:09.094Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:49:23.081Z","cmd":"js","args":"JSON.stringify({oauth2AgentId: sessionStorage.getItem('oauth2AgentId'), zkpAgentId: sessionStorage.getItem('zkpAgentId')})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:49:37.470Z","cmd":"js","args":"Object.keys(sessionStorage).join(',')","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:49:48.131Z","cmd":"js","args":"sessionStorage.getItem('demo_agents')","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:50:03.314Z","cmd":"js","args":"JSON.stringify(Object.fromEntries(Object.entries(sessionStorage).map(([k,v])=>[k,v])))","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:50:30.095Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":41,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:50:47.847Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:51:15.111Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:51:27.438Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:52:20.215Z","cmd":"js","args":"JSON.stringify({agentId: window._demoOAuth2AgentId, pk: !!window._demoPrivateKey, oauth2Acquired: window._oauth2TokenAcquired})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:52:48.259Z","cmd":"js","args":"JSON.stringify(window._agentConfig)","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:53:00.548Z","cmd":"js","args":"typeof window._agentId","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:54:05.933Z","cmd":"js","args":"\n(function() {\n  try {\n    const stored = sessionStorage.getItem('demo_agents');\n    console.log('sessionStorage demo_agents:', stored);\n    const parsed = stored ? JSON.parse(stored) : null;\n    cons…","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:54:29.323Z","cmd":"js","args":"window._demoOAuth2AgentId","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:55:01.346Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:57:12.305Z","cmd":"js","args":"\nwindow.__testSetOauth2 = function(val) {\n  console.log('Setting oauth2TokenAcquired to:', val);\n};\nconsole.log('chatApi setAgentConfig keys:', typeof setAgentConfig);\n","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-09T08:58:35.368Z","cmd":"status","args":"","origin":"http://127.0.0.1:34567/welcome","durationMs":23,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T08:58:44.030Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":365,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T08:58:58.598Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":49,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T08:59:32.501Z","cmd":"js","args":"\n(function() {\nvar result = {};\nresult.demoAgents = sessionStorage.getItem('demo_agents');\nresult.oauth2Id = window._demoOAuth2AgentId;\nresult.hasPk = !!(window._demoPrivateKey);\nresult.oauth2TokenAcq…","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T08:59:52.344Z","cmd":"js","args":"\nconst sendBtn = document.querySelector('button[disabled]');\nconsole.log('Send button disabled:', sendBtn?.disabled);\nconsole.log('Send button HTML:', sendBtn?.outerHTML);\nconsole.log('All buttons:', …","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:02:24.673Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":229,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:02:34.962Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":39,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:02:57.132Z","cmd":"js","args":"sessionStorage.getItem('demo_oauth2_creds')","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:03:08.943Z","cmd":"js","args":"JSON.stringify({id:window._demoOAuth2AgentId, pk:!!window._demoPrivateKey, oauth2Acquired: window._oauth2TokenAcquired})","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:04:12.600Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:07:02.075Z","cmd":"js","args":"\ndocument.querySelectorAll('button').forEach(b => {\n  if (b.textContent.includes('OAuth2') || b.textContent.includes('ZKP') || b.textContent.includes('Send')) {\n    console.log('Button:', b.textConten…","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:07:13.175Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:07:41.953Z","cmd":"js","args":"sessionStorage.clear(); localStorage.clear()","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:07:42.176Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":192,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:07:54.937Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":21,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:08:23.352Z","cmd":"js","args":"JSON.stringify({oauth2creds:!!sessionStorage.getItem('demo_oauth2_creds'), id:window._demoOAuth2AgentId, pk:!!window._demoPrivateKey})","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:08:51.218Z","cmd":"js","args":"\nconst form = document.querySelector('form');\nconsole.log('Form found:', !!form);\n// Force-enable send by clicking somewhere that sets state\nconst sendBtn = [...document.querySelectorAll('button')].fi…","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:11:48.826Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:13:17.615Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":10,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:13:36.454Z","cmd":"js","args":"\nconsole.log('sessionStorage keys:', Object.keys(sessionStorage).join(','));\nconst creds = sessionStorage.getItem('demo_oauth2_creds');\nconsole.log('creds:', creds ? 'exists (' + JSON.parse(creds).id …","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:14:39.143Z","cmd":"js","args":"\n// Use React's unstable_batchedUpdates if available to simulate React event\nconst btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('ZKP'));\nconsole.log('ZKP button:', b…","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:15:09.582Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":4617,"status":"error","hasCookies":false,"mode":"headed","error":"click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Send' })\u001b[22m\n\u001b[2m    - locator resolved to <button disabled type=\"submit\">Send</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m   …"}
+{"ts":"2026-05-09T09:18:47.958Z","cmd":"url","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:25:41.231Z","cmd":"eval","args":"document.querySelector('button')?.textContent","origin":"about:blank","durationMs":2,"status":"error","hasCookies":false,"mode":"launched","error":"File not found: document.querySelector('button')?.textContent"}
+{"ts":"2026-05-09T09:27:36.922Z","cmd":"status","args":"","origin":"http://127.0.0.1:34567/welcome","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:27:51.387Z","cmd":"js","args":"sessionStorage.clear(); localStorage.clear()","origin":"http://127.0.0.1:34567/welcome","durationMs":7,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:28:01.191Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":224,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:28:14.195Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":136,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:28:35.022Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/","durationMs":31,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:28:43.884Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/","durationMs":10,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:29:04.374Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":238,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:29:19.347Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":15,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:30:39.649Z","cmd":"js","args":"sessionStorage.clear(); localStorage.clear()","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:30:40.794Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":118,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:31:12.379Z","cmd":"js","args":"\nvar result = {\n  storageKeys: Object.keys(sessionStorage).join(','),\n  hasOAuth2Creds: !!sessionStorage.getItem('demo_oauth2_creds'),\n  oauth2creds: sessionStorage.getItem('demo_oauth2_creds') ? JSON…","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:31:41.362Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":1,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e8 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T09:31:49.675Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":19,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:47:23.343Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":56,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:47:55.930Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:50:13.454Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":49,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:50:26.380Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":12,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:51:02.415Z","cmd":"type","args":"@e11 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":33,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:51:19.925Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":36,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:51:39.796Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:52:15.697Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T09:56:52.531Z","cmd":"js","args":"\nconst btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Send'));\nconsole.log('Send btn disabled attr:', btn?.getAttribute('disabled'), '| type:', btn?.type, '| classNam…","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:39:57.356Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":301,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:40:00.414Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":26,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:40:19.700Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":12,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:40:31.411Z","cmd":"js","args":"JSON.stringify({agentId: window._demoOAuth2AgentId, pkey: window._demoPrivateKey ? 'SET' : 'NULL', storage: sessionStorage.getItem('demo_oauth2_creds')})","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:40:55.413Z","cmd":"fill","args":"@e6 Show me the cheapest product","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:40:55.952Z","cmd":"js","args":"const btn = document.querySelector('button[type=submit]'); JSON.stringify({disabled: btn.disabled, text: btn.textContent.trim()})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:41:05.945Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":41,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:41:10.975Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:41:25.910Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:42:11.611Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":11,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:42:45.264Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:42:45.355Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":45,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:42:51.389Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:43:10.382Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:43:26.655Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:43:46.530Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:43:46.634Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":68,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:43:58.990Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:44:26.159Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:45:09.557Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:45:24.464Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":272,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:45:29.516Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:45:29.556Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":1,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e4 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T10:45:42.632Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":208,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:45:47.670Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:45:47.722Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":26,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:46:10.797Z","cmd":"fill","args":"@e6 Show me the cheapest product","origin":"http://localhost:5173/chat","durationMs":11,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:46:11.830Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:46:11.921Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":63,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:46:26.836Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:48:23.873Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":250,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:48:27.917Z","cmd":"fill","args":"@e6 hi","origin":"http://localhost:5173/chat","durationMs":1,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e6 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T10:48:36.351Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":190,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:48:40.419Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":22,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:49:05.078Z","cmd":"fill","args":"@e6 hi","origin":"http://localhost:5173/chat","durationMs":21,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:49:06.117Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:49:06.324Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":161,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:49:08.375Z","cmd":"js","args":"\n(function() {\n  var cab = window._demoOAuth2AgentId;\n  var keys = Object.keys(localStorage).concat(Object.keys(sessionStorage).filter(function(k){return k.indexOf('oauth')>=0||k.indexOf('agent')>=0||…","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:52:29.602Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":283,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:52:34.681Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":34,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:53:05.125Z","cmd":"js","args":"\n(function() {\n  // Try to decode cached JWT token (without verification) to see the claim\n  var cab = window._demoOAuth2AgentId;\n  // Check what token is cached internally\n  try {\n    var parts = win…","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:53:33.107Z","cmd":"fill","args":"@e6 hello","origin":"http://localhost:5173/chat","durationMs":24,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:53:34.141Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:53:34.280Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":106,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:53:49.339Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:54:07.990Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:54:08.094Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":64,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:54:23.145Z","cmd":"js","args":"\n(function() {\n  // Capture the actual request/response using fetch intercept\n  return 'checking current state after send'\n})() \n","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T10:54:23.186Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:02:50.952Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":253,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:02:59.435Z","cmd":"snapshot","args":"-i -a -o .gstack/qa-reports/screenshots/initial.png","origin":"http://localhost:5173/","durationMs":264,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:09:29.212Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":184,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:11:19.090Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":200,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:11:39.322Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":26,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:12:19.585Z","cmd":"js","args":"sessionStorage.clear(); window._demoOAuth2AgentId = null; window._demoPrivateKey = null; window._oauth2TokenAcquired = null; console.log(cleared)","origin":"http://localhost:5173/chat","durationMs":3,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: ReferenceError: cleared is not defined\n    at eval (eval at evaluate (:290:30), <anonymous>:1:138)\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T11:12:34.597Z","cmd":"js","args":"sessionStorage.clear(); window._demoOAuth2AgentId = null; window._demoPrivateKey = null; window._oauth2TokenAcquired = null","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:13:05.091Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":49,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:13:19.425Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":18,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:13:43.758Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:14:05.709Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:14:19.797Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:14:51.071Z","cmd":"js","args":"sessionStorage.clear(); window._demoOAuth2AgentId = null; window._demoPrivateKey = null; window._oauth2TokenAcquired = null","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:14:51.139Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":40,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:14:54.167Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:15:27.242Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":10,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:15:53.063Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":189,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:15:57.131Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":21,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:16:10.251Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:16:10.318Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":37,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:16:14.345Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:17:13.703Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:17:41.391Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:17:41.604Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":186,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:17:46.641Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:18:45.693Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:18:45.726Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e4 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T11:18:52.757Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:21:55.223Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":76,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:24:02.529Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:24:02.801Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":245,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:24:05.883Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":22,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:24:27.769Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":49,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:24:32.814Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":12,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:25:04.555Z","cmd":"js","args":"JSON.stringify({window._demoOAuth2AgentId: window._demoOAuth2AgentId, window._demoPrivateKey: window._demoPrivateKey ? window._demoPrivateKey.substring(0,20) : null, agentId: sessionStorage.getItem(\"d…","origin":"http://localhost:5173/chat","durationMs":2,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: SyntaxError: Unexpected token '.'\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T11:25:18.681Z","cmd":"js","args":"window._demoOAuth2AgentId","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:26:09.983Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:26:10.058Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":47,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:26:18.091Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:26:31.229Z","cmd":"js","args":"document.querySelector([data-selected])?.tagName","origin":"http://localhost:5173/chat","durationMs":4,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: ReferenceError: data is not defined\n    at eval (eval at evaluate (:290:30), <anonymous>:1:25)\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T11:35:55.021Z","cmd":"js","args":"document.readyState","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:37:18.091Z","cmd":"js","args":"window._oauth2TokenAcquired","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:38:31.153Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:38:31.424Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":242,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:38:40.432Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:39:05.051Z","cmd":"js","args":"sessionStorage.getItem(\"demo_oauth2_creds\")","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:39:46.390Z","cmd":"js","args":"window._demoOAuth2AgentId","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:40:25.786Z","cmd":"js","args":"window._oauth2Token","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:41:03.785Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":186,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:41:08.821Z","cmd":"console","args":"--errors","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:43:53.160Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":183,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:44:01.151Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":27,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:46:38.474Z","cmd":"js","args":"JSON.stringify({_demoOAuth2AgentId: window._demoOAuth2AgentId, _oauth2TokenAcquired: window._oauth2TokenAcquired})","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:46:55.517Z","cmd":"js","args":"sessionStorage.getItem(\"demo_oauth2_creds\")","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:47:52.642Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:55:13.228Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":188,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:56:33.067Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":170,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:58:05.194Z","cmd":"network","args":"clear","origin":"http://localhost:5173/","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:58:05.242Z","cmd":"js","args":"Array.from(document.querySelectorAll('nav a')).find(a => a.textContent.includes('Chat'))?.click()","origin":"http://localhost:5173/chat","durationMs":14,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:58:07.307Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":26,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:59:17.869Z","cmd":"js","args":"document.querySelector('textarea').value = 'Show me laptops under 1000 dollars'","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:59:18.900Z","cmd":"js","args":"document.querySelector('button[type=submit]')?.disabled","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T11:59:31.094Z","cmd":"js","args":"({ agentId: window._demoOAuth2AgentId, hasPrivateKey: !!window._demoPrivateKey, tokenAcquired: window._oauth2TokenAcquired })","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:00:29.878Z","cmd":"js","args":"window._agentConfig","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:01:03.017Z","cmd":"js","args":"window._demoOAuth2AgentId","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:01:03.050Z","cmd":"js","args":"window._demoPrivateKey ? window._demoPrivateKey.substring(0,30)+'...' : null","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:11:21.823Z","cmd":"click","args":"textarea","origin":"http://localhost:5173/chat","durationMs":56,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:11:22.192Z","cmd":"js","args":"document.querySelector('textarea').focus(); document.querySelector('textarea').value = 'Show me laptops under 1000 dollars'; document.querySelector('textarea').dispatchEvent(new Event('input', {bubble…","origin":"http://localhost:5173/chat","durationMs":13,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:11:22.737Z","cmd":"js","args":"document.querySelector('button[type=submit]')?.disabled","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:11:51.277Z","cmd":"js","args":"\nconst ta = document.querySelector('textarea');\nconst nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;\nnativeInputValueSetter.call(ta, 'Show me lap…","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:11:51.807Z","cmd":"js","args":"document.querySelector('button[type=submit]')?.disabled","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:12:51.290Z","cmd":"js","args":"\nconst ta = document.querySelector('textarea');\n// Simulate typing character by character to trigger React's synthetic event system\nconst input = 'Show me laptops';\nconst chars = input.split('');\nlet …","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:12:53.319Z","cmd":"js","args":"({ disabled: document.querySelector('button[type=submit]')?.disabled, msgLen: document.querySelector('textarea')?.value.length })","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:16:55.253Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:16:55.386Z","cmd":"click","args":"button[type=submit]","origin":"http://localhost:5173/chat","durationMs":102,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:16:59.428Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:17:27.377Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:18:34.251Z","cmd":"js","args":"window._lastIntentError || 'no error captured'","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:18:34.287Z","cmd":"js","args":"window._agentConfig","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:20:40.940Z","cmd":"js","args":"\nconst token = window._cachedAccessToken;\nconst agentId = window._demoOAuth2AgentId;\nconst config = window._agentConfig;\n({ token: token ? token.substring(0,50)+'...' : null, agentId, config })\n","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:22:04.832Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":286,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:22:08.874Z","cmd":"js","args":"\n// Manually trigger the full intent flow programmatically\nconst { chatApi, setAgentConfig } = await import('/src/services/chatApi.js');\n","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:22:08.906Z","cmd":"js","args":"({\n  agentConfig: window._agentConfig,\n  cachedToken: window._cachedAccessToken ? window._cachedAccessToken.substring(0,30)+'...' : null,\n  demoId: window._demoOAuth2AgentId,\n  demoKey: window._demoPr…","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:12.366Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":243,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:15.401Z","cmd":"network","args":"clear","origin":"http://localhost:5173/","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:15.439Z","cmd":"js","args":"document.querySelector('nav a').click()","origin":"http://localhost:5173/","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:17.470Z","cmd":"js","args":"\nconst ta = document.querySelector('textarea');\nif (!ta) { console.log('NO TEXTAREA'); } else {\n  const input = 'Show me laptops';\n  const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaEl…","origin":"http://localhost:5173/","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:20.499Z","cmd":"js","args":"({ msgLen: document.querySelector('textarea')?.value.length, btnDisabled: document.querySelector('button[type=submit]')?.disabled })","origin":"http://localhost:5173/","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:41.158Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":155,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:31:46.222Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":30,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:32:08.785Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":47,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:32:10.823Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:32:39.310Z","cmd":"js","args":"\nconst chars = 'Show me laptops'.split('');\nconst ta = document.querySelector('textarea');\nconst nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;\nlet i = 0;\n…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:32:42.340Z","cmd":"js","args":"{ msgLen: document.querySelector('textarea')?.value.length, btnDis: document.querySelector('button[type=submit]')?.disabled }","origin":"http://localhost:5173/chat","durationMs":2,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: SyntaxError: Unexpected token ':'\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T12:32:54.584Z","cmd":"js","args":"document.querySelector('textarea').value","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:33:04.067Z","cmd":"js","args":"document.querySelector('button[type=submit]').disabled","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:33:21.514Z","cmd":"js","args":"({agentId: window._demoOAuth2AgentId, hasKey: !!window._demoPrivateKey, agentConfigAgentId: window._agentConfig?.agentId, authApiHasToken: !!window._cachedToken})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:33:58.033Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":177,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:34:03.066Z","cmd":"js","args":"({agentId: window._demoOAuth2AgentId, hasKey: !!window._demoPrivateKey, configNull: window._agentConfig === null, configUndef: window._agentConfig === undefined})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:37:55.617Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":98,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:37:59.656Z","cmd":"js","args":"({\n  agentId: window._demoOAuth2AgentId,\n  creds: window._agentConfig,\n  oauth2Creds: window._oauth2Credentials,\n  authApiCached: !!window._cachedToken\n})","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:38:29.673Z","cmd":"goto","args":"about:blank","origin":"http://localhost:5173/chat","durationMs":1,"status":"error","hasCookies":false,"mode":"headed","error":"Blocked: scheme \"about:\" is not allowed. Only http:, https:, and file: URLs are permitted."}
+{"ts":"2026-05-09T12:38:29.701Z","cmd":"js","args":"sessionStorage.clear()","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:38:30.918Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":186,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:38:35.962Z","cmd":"js","args":"({\n  oauth2CredsNull: window._oauth2Credentials === null,\n  oauth2CredsDefined: window._oauth2Credentials !== undefined,\n  windowAgentId: window._demoOAuth2AgentId,\n  windowPrivKey: !!window._demoPriv…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:39:21.720Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":172,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:39:26.758Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e8 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T12:39:28.792Z","cmd":"js","args":"[document.querySelector('textarea').value, document.querySelector('button[type=submit]').disabled, window._agentConfig]","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:40:14.124Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":183,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:40:16.172Z","cmd":"js","args":"(function() { sessionStorage.removeItem('demo_oauth2_creds'); console.log('cleared'); })()","origin":"http://localhost:5173/","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:40:17.310Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":107,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:40:21.343Z","cmd":"js","args":"[window._demoOAuth2AgentId, window._agentConfig, document.querySelector('button[type=submit]').disabled]","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:41:10.370Z","cmd":"js","args":"\n({\n  agentId: window._demoOAuth2AgentId,\n  hasKey: !!window._demoPrivateKey,\n  agentConfigType: typeof window._agentConfig,\n  agentConfigVal: window._agentConfig,\n  sendBtnDisabled: document.querySel…","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:41:33.093Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:42:36.202Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":181,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:42:38.249Z","cmd":"js","args":"(function() { sessionStorage.removeItem('demo_oauth2_creds'); })()","origin":"http://localhost:5173/","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:42:38.434Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":153,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:42:44.490Z","cmd":"js","args":"[window._agentConfig, document.querySelector('button[type=submit]').disabled, !!window._demoPrivateKey]","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:21.478Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":167,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:26.523Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e9 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T12:43:28.584Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":25,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:28.615Z","cmd":"js","args":"[window._agentConfig, document.querySelector('button[type=submit]').disabled]","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:54.643Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":188,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:59.686Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:59.715Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:43:59.767Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":12,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:44:41.975Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:44:42.010Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:45:33.769Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":246,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:45:33.823Z","cmd":"js","args":"(function() { sessionStorage.removeItem('demo_oauth2_creds'); })()","origin":"http://localhost:5173/","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:45:34.002Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":138,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:45:40.042Z","cmd":"js","args":"document.querySelector('button[type=submit]').disabled","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:45:42.075Z","cmd":"js","args":"\nconst ta = document.querySelector('textarea');\nconst chars = 'Laptop'.split('');\nconst nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;\nlet i = 0;\nfunction …","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:45:44.111Z","cmd":"js","args":"{ textareaLen: document.querySelector('textarea').value.length, btnDisabled: document.querySelector('button[type=submit]').disabled, agentConfig: window._agentConfig }","origin":"http://localhost:5173/chat","durationMs":4,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: SyntaxError: Unexpected token ':'\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T12:46:07.543Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:06.309Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":200,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:12.348Z","cmd":"js","args":"[window._demoOAuth2AgentId, !!window._demoPrivateKey, window._agentConfig ? 'SET' : 'NULL']","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:12.380Z","cmd":"js","args":"\nconst ta = document.querySelector('textarea');\nconst nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;\nnativeSetter.call(ta, 'Show me laptops');\nta.dispatchE…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:13.410Z","cmd":"js","args":"[document.querySelector('textarea').value.length, document.querySelector('button[type=submit]').disabled]","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:46.359Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:46.488Z","cmd":"click","args":"button[type=submit]","origin":"http://localhost:5173/chat","durationMs":97,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:48:54.539Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:49:10.685Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:50:00.822Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:50:24.632Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":25,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:50:46.008Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":109,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:50:48.144Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:50:48.281Z","cmd":"js","args":"\nconst pw = document.querySelectorAll('input[type=password]')[0];\nif (pw) {\n  const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;\n  nativeSetter.call(pw, 'zk…","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:50:49.373Z","cmd":"js","args":"document.querySelectorAll('input[type=password]')[0]?.value?.length","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:51:00.091Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:51:26.147Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:51:26.301Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":44,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:51:34.347Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:52:18.578Z","cmd":"console","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:52:41.764Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":243,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:52:48.797Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e9 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T12:52:50.830Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:52:50.891Z","cmd":"js","args":"\nconst ta = document.querySelectorAll('textarea')[1];\nif (ta) {\n  const s = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;\n  s.call(ta, 'Show me laptops');\n  ta.dispatchE…","origin":"http://localhost:5173/chat","durationMs":10,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:52:51.929Z","cmd":"js","args":"\nconst pw = document.querySelector('input[type=password]');\nif (pw) {\n  const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;\n  s.call(pw, 'zkp_password_456');\n  pw.dispa…","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:52:57.579Z","cmd":"click","args":"button[type=submit]","origin":"http://localhost:5173/chat","durationMs":4618,"status":"error","hasCookies":false,"mode":"headed","error":"click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[type=submit]')\u001b[22m\n\u001b[2m    - locator resolved to <button disabled type=\"submit\">Send</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - el…"}
+{"ts":"2026-05-09T12:53:10.481Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:56:20.670Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":172,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:56:27.717Z","cmd":"js","args":"[window._demoOAuth2AgentId, !!window._demoPrivateKey, window._agentConfig ? 'CONFIGURED' : 'null']","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:56:45.172Z","cmd":"js","args":"\nconst ta = document.querySelector('textarea');\nconst s = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;\ns.call(ta, 'Show laptops');\nta.dispatchEvent(new Event('input', {…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:56:45.259Z","cmd":"click","args":"button[type=submit]","origin":"http://localhost:5173/chat","durationMs":55,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:56:57.335Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:57:16.511Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:57:34.271Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:57:57.746Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":39,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:57:59.777Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:57:59.816Z","cmd":"js","args":"\nconst pw = document.querySelector('input[type=password]');\nconst target = 'zkp_password_456';\nlet i = 0;\nconst nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;…","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:58:03.854Z","cmd":"js","args":"{ pwLen: document.querySelector('input[type=password]')?.value?.length }","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:58:36.249Z","cmd":"js","args":"{ msgLen: document.querySelectorAll('textarea')[1]?.value?.length }","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:58:38.283Z","cmd":"js","args":"\nconst tas = document.querySelectorAll('textarea');\nconst ta = tas[tas.length - 1];\nif (!ta) { console.log('no textarea found'); }\nelse {\n  const target = 'Show laptops';\n  let i = 0;\n  const s = Obje…","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:58:41.318Z","cmd":"js","args":"{ msgLen: document.querySelectorAll('textarea')[1]?.value?.length, btnDis: document.querySelector('button[type=submit]')?.disabled }","origin":"http://localhost:5173/chat","durationMs":1,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: SyntaxError: Unexpected token ':'\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T12:59:00.695Z","cmd":"js","args":"document.querySelectorAll('textarea')[1]?.value?.length","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:59:26.430Z","cmd":"network","args":"clear","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T12:59:26.464Z","cmd":"js","args":"\nconst tas = document.querySelectorAll('textarea');\nconst inputs = document.querySelectorAll('input[type=text], input[type=password]');\n'textareas: ' + tas.length + ', inputs: ' + inputs.length +\n' ta…","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:00:19.743Z","cmd":"click","args":"button[type=submit]","origin":"http://localhost:5173/chat","durationMs":76,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:00:31.853Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:05:43.785Z","cmd":"status","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:05:56.533Z","cmd":"url","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:18:15.953Z","cmd":"url","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:18:29.040Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":306,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:18:33.648Z","cmd":"storage","args":"","origin":"http://localhost:5173/chat","durationMs":7,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:18:47.648Z","cmd":"js","args":"sessionStorage.removeItem('demo_oauth2_creds')","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:18:52.171Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":347,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:19:19.691Z","cmd":"storage","args":"","origin":"http://localhost:5173/chat","durationMs":7,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:19:36.185Z","cmd":"click","args":"button:nth-child(2)","origin":"http://localhost:5173/chat","durationMs":127,"status":"error","hasCookies":false,"mode":"headed","error":"click: Error: strict mode violation: locator('button:nth-child(2)') resolved to 2 elements:\n    1) <button>ZKP Agent</button> aka getByRole('button', { name: 'ZKP Agent' })\n    2) <button disabled type=\"submit\">Send</button> aka getByRole('button', { name: 'Send' })\n\nCall log:\n\u001b[2m  - waiting for lo…"}
+{"ts":"2026-05-09T13:19:43.388Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":48,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:19:49.088Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":72,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:19:50.164Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:20:00.823Z","cmd":"fill","args":"@e11 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":65,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:20:14.899Z","cmd":"fill","args":"@e12 Show me all laptops","origin":"http://localhost:5173/chat","durationMs":24,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:20:22.058Z","cmd":"is","args":"enabled @e13","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:20:31.520Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:20:31.728Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":149,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:20:34.784Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:16.861Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:16.997Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":86,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:22.976Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:43.460Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:43.551Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":60,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:46.592Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:21:59.744Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:22:16.180Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:22:52.780Z","cmd":"js","args":"document.cookie","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:33:13.655Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":255,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:33:15.694Z","cmd":"url","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:33:29.792Z","cmd":"storage","args":"","origin":"http://localhost:5173/chat","durationMs":3,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:33:44.153Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:33:44.198Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e9 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T13:33:46.236Z","cmd":"fill","args":"@e11 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e11 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T13:33:46.269Z","cmd":"fill","args":"@e12 Show me laptops","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e12 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T13:33:47.303Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":0,"status":"error","hasCookies":false,"mode":"headed","error":"Ref @e13 not found. Run 'snapshot' to get fresh refs."}
+{"ts":"2026-05-09T13:33:55.346Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:01.717Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":33,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:28.793Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":61,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:29.858Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:38.451Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:38.503Z","cmd":"fill","args":"@e11 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":18,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:38.577Z","cmd":"fill","args":"@e12 Show laptops","origin":"http://localhost:5173/chat","durationMs":28,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:34:38.695Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":75,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T13:35:18.062Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:08:05.868Z","cmd":"goto","args":"http://localhost:5173","origin":"http://localhost:5173/","durationMs":597,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:08:22.012Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/","durationMs":41,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:08:29.878Z","cmd":"click","args":"@e4","origin":"http://localhost:5173/chat","durationMs":75,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:08:39.100Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:08:39.148Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:08:59.579Z","cmd":"network","args":"--clear","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:09:27.474Z","cmd":"fill","args":"@e10 Search for laptops","origin":"http://localhost:5173/chat","durationMs":24,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:09:34.172Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:09:44.040Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":55,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:09:49.753Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:09:49.806Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":16,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:10:15.098Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:04.201Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":269,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:04.362Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":27,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:04.460Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":54,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:23.841Z","cmd":"fill","args":"@e10 Search for laptops","origin":"http://localhost:5173/chat","durationMs":12,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:23.886Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:23.939Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":13,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:38.503Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":52,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:38.571Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:38.677Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":7,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:49.725Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:51:49.766Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T16:52:13.323Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:00:57.030Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":65,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:00:57.094Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:00:57.181Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":28,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:06.210Z","cmd":"fill","args":"@e6 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":20,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:06.278Z","cmd":"fill","args":"@e7 Search for headphones","origin":"http://localhost:5173/chat","durationMs":23,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:06.349Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":10,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:16.193Z","cmd":"click","args":"@e13","origin":"http://localhost:5173/chat","durationMs":52,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:16.282Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:16.348Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:30.751Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:01:50.420Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:34.282Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":272,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:34.388Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:34.494Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":35,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:41.489Z","cmd":"fill","args":"@e6 Search for laptops","origin":"http://localhost:5173/chat","durationMs":13,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:41.527Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:41.617Z","cmd":"click","args":"@e7","origin":"http://localhost:5173/chat","durationMs":56,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:43.654Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:43.691Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:02:51.248Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:00.645Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":2977,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:00.692Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:00.742Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":14,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:17.794Z","cmd":"fill","args":"@e6 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":51,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:17.869Z","cmd":"fill","args":"@e7 Search for headphones","origin":"http://localhost:5173/chat","durationMs":13,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:18.079Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":65,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:18.171Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:18.236Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":21,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:03:30.043Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:04:05.198Z","cmd":"storage","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:04:16.732Z","cmd":"js","args":"JSON.stringify(Object.keys(window).filter(k => k.includes('Agent') || k.includes('agent') || k.includes('zkp')))","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:04:50.612Z","cmd":"js","args":"JSON.stringify({zkpAgentId: window._demoZkpAgentId, oauth2Id: window._demoOAuth2AgentId, sessionStorage: Object.fromEntries(Object.entries(sessionStorage).filter(([k]) => k.includes('agent') || k.incl…","origin":"http://localhost:5173/chat","durationMs":3,"status":"error","hasCookies":false,"mode":"headed","error":"evaluate: SyntaxError: Unexpected token ')'\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:290:30)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"}
+{"ts":"2026-05-09T17:05:24.024Z","cmd":"js","args":"sessionStorage.removeItem('demo_agents'); sessionStorage.removeItem('demo_oauth2_creds'); console.log('cleared')","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:24.308Z","cmd":"reload","args":"","origin":"http://localhost:5173/chat","durationMs":240,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:24.386Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:24.519Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":65,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:33.892Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:33.933Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":10,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:41.955Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:52.862Z","cmd":"click","args":"@e5","origin":"http://localhost:5173/chat","durationMs":38,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:52.901Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:05:52.943Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":9,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:04.307Z","cmd":"fill","args":"@e6 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":18,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:04.356Z","cmd":"fill","args":"@e7 Search for headphones","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:04.444Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":55,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:04.489Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:04.531Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:23.156Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-09T17:06:23.193Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"headed"}
+{"ts":"2026-05-10T04:28:24.360Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":243,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:28:28.166Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:28:32.536Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":27,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:28:40.846Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":2,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:28:53.168Z","cmd":"fill","args":"@e10 Search for laptops","origin":"http://localhost:5173/chat","durationMs":17,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:28:56.047Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:29:00.921Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":52,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:29:03.620Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:29:26.389Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:30:23.605Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":115,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:03.354Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":108,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:17.989Z","cmd":"wait","args":"--load","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:18.023Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":13,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:26.339Z","cmd":"fill","args":"@e10 Search for laptops","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:26.366Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:39.182Z","cmd":"click","args":"@e11","origin":"http://localhost:5173/chat","durationMs":49,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:39.220Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:32:57.402Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:07.529Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":32,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:07.554Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:28.458Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":10,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:39.444Z","cmd":"fill","args":"@e6 zkp_password_456","origin":"http://localhost:5173/chat","durationMs":13,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:39.474Z","cmd":"fill","args":"@e7 Search for headphones","origin":"http://localhost:5173/chat","durationMs":8,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:49.342Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":5,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:33:49.387Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":24,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:34:14.271Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:34:14.297Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:34:39.417Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:35:18.186Z","cmd":"network","args":"","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:35:45.312Z","cmd":"click","args":"@e9","origin":"http://localhost:5173/chat","durationMs":16,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:35:50.273Z","cmd":"snapshot","args":"-i","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:36:04.011Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":28,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:36:04.037Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T04:36:12.070Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"launched"}

@@ -1,26 +1,28 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 
 /**
- * Stores the LATEST chat result only (not full history).
- * ZKP proofs are large base64 strings — storing only latest avoids
- * unbounded memory growth after many messages.
+ * Stores chat results keyed by auth type (oauth2 | zkp).
+ * Tracking both independently enables live side-by-side comparison.
+ * latestResult is the most recently stored result (regardless of type),
+ * kept for backwards compat with components that only need any single result.
  */
 const ChatHistoryContext = createContext(null)
 
 export function ChatHistoryProvider({ children }) {
+  const [resultsByAuth, setResultsByAuth] = useState({ oauth2: null, zkp: null })
+  // Derived: most recent result (any type)
   const [latestResult, setLatestResult] = useState(null)
-  // { intent, result, timing, authInfo, timestamp }
 
   const storeResult = useCallback((data) => {
-    setLatestResult({ ...data, timestamp: Date.now() })
-  }, [])
-
-  const clearResult = useCallback(() => {
-    setLatestResult(null)
+    const authType = data?.auth_info?.type
+    if (!authType) return
+    const keyed = { ...data, timestamp: Date.now() }
+    setResultsByAuth(prev => ({ ...prev, [authType]: keyed }))
+    setLatestResult(keyed)
   }, [])
 
   return (
-    <ChatHistoryContext.Provider value={{ latestResult, storeResult, clearResult }}>
+    <ChatHistoryContext.Provider value={{ latestResult, resultsByAuth, storeResult }}>
       {children}
     </ChatHistoryContext.Provider>
   )
