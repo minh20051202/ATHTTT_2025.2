@@ -1,4 +1,9 @@
 /**
+ * @deprecated ZKPFlow is unused — the 5-step ZKP data flow is now shown
+ * in ComputationSidebar/ActionLog. Kept for reference only.
+ * Will be removed in a future release.
+ */
+/**
  * ZKPFlow — 5-step horizontal data flow explainer (dark theme).
  * Each step: circle connector with title + description.
  * Active/completed state uses emerald ZKP color.
