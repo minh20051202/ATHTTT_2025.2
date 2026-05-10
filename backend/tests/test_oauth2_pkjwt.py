@@ -144,39 +144,25 @@ class TestOAuth2IntentWithBearerToken:
 
 
 class TestOAuth2SeedEndpoint:
-    """Task 3: Seed endpoint generates RSA keypair, returns private_key one-time only."""
+    """Seed endpoint creates agents. Client must call /register to provide its public key."""
 
-    def test_seed_returns_private_key_for_oauth2_agent(self, client):
-        """Seed response includes private_key (one-time) for the OAuth2 agent."""
-        response = client.post("/api/demo/seed")
-        assert response.status_code == 200
-        data = response.json()
-
-        oauth2 = data["oauth2_agent"]
-        assert "private_key" in oauth2
-        assert oauth2["private_key"].startswith("-----BEGIN PRIVATE KEY-----")
-
-    def test_oauth2_agent_in_db_has_public_key_not_credentials_hash(self, client, db):
-        """Seeded OAuth2 agent stores RSA public_key in DB; credentials_hash is NULL."""
+    def test_oauth2_agent_created_with_null_public_key(self, client, db):
+        """Seeded OAuth2 agent starts with NULL public_key — client registers later via /register."""
         response = client.post("/api/demo/seed")
         agent_id = response.json()["oauth2_agent"]["id"]
 
         from backend.db.models import Agent
         agent = db.query(Agent).filter(Agent.id == agent_id).first()
-        assert agent.public_key is not None
-        assert agent.public_key.startswith("-----BEGIN PUBLIC KEY-----")
+        assert agent.public_key is None, "public_key is NULL at seed time — client registers it"
         assert agent.credentials_hash is None  # No bcrypt hash
+        assert agent.oauth2_private_key is None  # Server NEVER stores per-agent private key
 
-    def test_second_seed_returns_same_public_key_for_same_agent(self, client, db):
-        """Re-seeding returns the same agent's public key (not regenerated)."""
-        client.post("/api/demo/seed")
-        seed1 = client.post("/api/demo/seed").json()
-        pk1 = seed1["oauth2_agent"].get("public_key")
-
-        # Re-seed: same agent should be found, no new key generated
-        seed2 = client.post("/api/demo/seed").json()
-        pk2 = seed2["oauth2_agent"].get("public_key")
-
-        # Agent is same, but public_key may have been regenerated on re-seed (acceptable)
-        # The key invariant: private_key exists and is usable for signing
-        assert seed2["oauth2_agent"]["private_key"].startswith("-----BEGIN PRIVATE KEY-----")
+    def test_seed_does_not_return_private_key(self, client):
+        """Seed response does NOT include a private_key — client generates keypair locally."""
+        response = client.post("/api/demo/seed")
+        assert response.status_code == 200
+        data = response.json()
+        oauth2 = data["oauth2_agent"]
+        assert "private_key" not in oauth2, "Seed must NOT return private key - client generates its own"
+        assert "id" in oauth2
+        assert oauth2["auth_type"] == "oauth2"

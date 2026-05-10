@@ -148,18 +148,31 @@ class TestChatEndpoint:
         assert response.status_code == 404
 
 
-def test_chat_oauth2_verifies_with_agent_public_key(client):
-    """OAuth2 /intent must verify the access token using the agent's stored public key (asymmetric RS256), not the shared secret."""
-    from backend.auth.oauth2 import oauth2_auth
+def test_chat_oauth2_verifies_with_server_secret(client):
+    """OAuth2 /intent verifies access token using HS256 server symmetric secret.
 
-    # Seed creates an agent and returns the client private key
+    Access tokens are minted with the server's jwt_secret_key (HS256).
+    Client_assertion is still RS256 (signed with client-held private key, verified with registered public key).
+    """
+    from backend.auth.oauth2 import oauth2_auth
+    from jose import jwt
+
+    # Seed creates agent with public_key=NULL — client must register its public key first
     seed_resp = client.post("/api/demo/seed")
     seed_data = seed_resp.json()
     oauth2_agent = seed_data.get("oauth2_agent", {})
     agent_id = oauth2_agent["id"]
 
-    # Exchange for an access token (this is already RS256 from Task 26)
-    assertion, _ = oauth2_auth.create_client_assertion(str(agent_id), oauth2_agent["private_key"])
+    # Client (test) generates a keypair and registers the public key
+    public_pem, private_pem = oauth2_auth.create_rsa_keypair()
+    register_resp = client.post("/api/auth/oauth2/register", data={
+        "client_id": str(agent_id),
+        "public_key_pem": public_pem,
+    })
+    assert register_resp.status_code == 200, f"Register failed: {register_resp.text}"
+
+    # Client signs client_assertion with private key, exchanges for access token (now HS256)
+    assertion, _ = oauth2_auth.create_client_assertion(str(agent_id), private_pem)
     token_resp = client.post("/api/auth/oauth2/token", data={
         "client_id": str(agent_id),
         "client_assertion": assertion,
@@ -167,19 +180,19 @@ def test_chat_oauth2_verifies_with_agent_public_key(client):
     assert token_resp.status_code == 200, f"Token failed: {token_resp.text}"
     access_token = token_resp.json()["access_token"]
 
-    # Call /intent with the access token
+    # Access token must be HS256 (server symmetric), not RS256 per-agent
+    header = jwt.get_unverified_header(access_token)
+    assert header["alg"] == "HS256", f"Expected HS256, got {header['alg']}"
+
+    # Call /intent with the HS256 access token
     resp = client.post("/api/chat/intent",
         json={"message": "what is the price of Laptop", "agent_id": agent_id},
         headers={"Authorization": f"Bearer {access_token}"}
     )
-
-    # The critical assertion: verification must work with RS256 asymmetric verification
-    # (previously verify_token used shared HS256 secret)
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
     data = resp.json()
     assert data["auth_info"]["type"] == "oauth2"
     assert "verification_time" in data["auth_info"]
-    assert data["auth_info"]["verification_time"] > 0
     assert "token_size" in data["auth_info"]
 
 

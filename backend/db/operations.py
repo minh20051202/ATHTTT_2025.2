@@ -3,7 +3,6 @@ from typing import List, Optional
 from .models import User, Agent, Product, Transaction, get_db
 import bcrypt
 import time
-from ..auth.oauth2 import oauth2_auth
 
 
 class DatabaseOperations:
@@ -46,19 +45,16 @@ class DatabaseOperations:
             # Only the public key (signature params) is stored.
             agent_credentials_hash = None
         elif auth_type == "oauth2":
-            # OAuth2 agents can be either:
-            # - legacy bcrypt-hashed secret (credentials_hash set, public_key=None)
-            # - PKJWT (credentials_hash=None, public_key=RSA_pem)
-            agent_credentials_hash = credentials_hash  # None is valid for PKJWT variant
-            # PKJWT: generate a per-agent signing keypair (separate from the client-auth keypair)
-            oauth2_public_key, oauth2_private_key = oauth2_auth.create_rsa_keypair()
+            # OAuth2 PKJWT: client generates its own RSA keypair and sends only
+            # the PUBLIC KEY to the registration endpoint. Server never has the private key.
+            agent_credentials_hash = credentials_hash  # None for PKJWT variant
             agent = Agent(
                 user_id=user_id,
                 name=name,
                 auth_type=auth_type,
                 credentials_hash=agent_credentials_hash,
-                public_key=oauth2_public_key,
-                oauth2_private_key=oauth2_private_key,
+                public_key=None,          # client will register via POST /api/auth/oauth2/register
+                oauth2_private_key=None,  # DEPRECATED: server never stores per-agent private key
             )
             db.add(agent)
             db.commit()

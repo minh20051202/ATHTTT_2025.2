@@ -53,7 +53,7 @@ class TestOAuth2Auth:
         token_info = data["token_info"]
         assert "header" in token_info
         assert "payload" in token_info
-        assert token_info["header"]["alg"] == "RS256"
+        assert token_info["header"]["alg"] == "HS256"
         assert token_info["payload"]["sub"] == str(oauth2_pkjwt_agent.id)
         assert token_info["payload"]["type"] == "oauth2"
 
@@ -72,8 +72,8 @@ class TestOAuth2Auth:
         )
         token = response.json()["access_token"]
 
-        # Verify the access token directly via OAuth2 auth module (asymmetric — uses agent's public key)
-        payload = oauth2_auth.verify_token_with_public_key(token, oauth2_pkjwt_agent.public_key)
+        # Verify the access token via OAuth2 auth module (HS256 symmetric — server's own secret)
+        payload = oauth2_auth.verify_token(token)
         assert payload["sub"] == str(oauth2_pkjwt_agent.id)
         assert payload["type"] == "oauth2"
 
@@ -94,27 +94,7 @@ class TestOAuth2Auth:
         tampered_token = token + "tampered"
 
         with pytest.raises(Exception):
-            oauth2_auth.verify_token_with_public_key(tampered_token, oauth2_pkjwt_agent.public_key)
-
-    def test_token_endpoint_signs_with_agent_private_key(self, client, oauth2_pkjwt_agent):
-        """Access tokens must be signed with per-agent RS256 key, not shared HS256 secret."""
-        from backend.auth.oauth2 import oauth2_auth
-
-        client_id = str(oauth2_pkjwt_agent.id)
-        assertion, _ = oauth2_auth.create_client_assertion(
-            client_id, oauth2_pkjwt_agent._test_private_key
-        )
-
-        token_resp = client.post(
-            "/api/auth/oauth2/token",
-            data={"client_id": client_id, "client_assertion": assertion}
-        )
-        assert token_resp.status_code == 200, f"Token failed: {token_resp.status_code}: {token_resp.text}"
-        access_token = token_resp.json()["access_token"]
-
-        # Must be RS256, not HS256
-        header = jwt.get_unverified_header(access_token)
-        assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
+            oauth2_auth.verify_token(tampered_token)
 
 
 class TestOAuth2Chat:
@@ -158,7 +138,7 @@ class TestOAuth2Chat:
 
         # JWT parts should be present
         token_info = data["auth_info"]["token_info"]
-        assert token_info["header"]["alg"] == "RS256"
+        assert token_info["header"]["alg"] == "HS256"
         assert token_info["payload"]["type"] == "oauth2"
 
     def test_chat_oauth2_timing_metrics(self, client, oauth2_pkjwt_agent, sample_products):
@@ -210,10 +190,15 @@ class TestOAuth2Chat:
 
 
 class TestOAuth2PerAgentKeyStorage:
-    """Test per-agent key storage for RS256 token signing (Task 25)."""
+    """Test that server never stores per-agent private key in OAuth2 PKJWT flow.
 
-    def test_oauth2_agent_stores_per_agent_signing_key(self):
-        """OAuth2 agent must store per-agent RSA signing key and public verification key."""
+    Client generates its own RSA keypair and sends only the public key to the server.
+    Server uses the public key to verify client_assertion (RS256), and issues access
+    tokens signed with the server's symmetric HS256 secret.
+    """
+
+    def test_oauth2_agent_never_stores_private_key(self):
+        """OAuth2 agent record must NOT store any per-agent private key in the DB."""
         import os
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
@@ -230,31 +215,63 @@ class TestOAuth2PerAgentKeyStorage:
 
         try:
             from backend.db.operations import DatabaseOperations
-            from backend.auth.oauth2 import OAuth2Auth
 
             db_ops = DatabaseOperations()
             user = db_ops.create_user(db=db, username="test_pkjwt_task25", email="test_task25@pkj.com", password="pw")
             agent = db_ops.create_agent(db=db, user_id=user.id, name="Test PKJWT Agent Task25", auth_type="oauth2")
 
-            assert agent.oauth2_private_key is not None, "oauth2_private_key must be stored"
-            assert "-----BEGIN PRIVATE KEY-----" in agent.oauth2_private_key, "Must be PKCS8 PEM"
+            # Server NEVER stores any per-agent private key
+            assert agent.oauth2_private_key is None, "oauth2_private_key must be None — server never stores it"
+            # public_key is NULL at creation; client registers their public key later via /register
+            assert agent.public_key is None, "public_key is NULL at creation (client registers later)"
 
-            # The agent should also have a public key stored (this was already working)
-            assert agent.public_key is not None, "public_key must also be stored"
-            assert "-----BEGIN PUBLIC KEY-----" in agent.public_key, "Must be RSA public PEM"
+            # Verify: server can mint an access token (HS256) and verify it (HS256)
+            from backend.auth.oauth2 import oauth2_auth
+            token = oauth2_auth.create_access_token({"sub": str(agent.id), "type": "oauth2"})
+            payload = oauth2_auth.verify_token(token)
+            assert payload["sub"] == str(agent.id)
 
-            # Use the new methods to verify we can sign and verify with the stored key pair
-            oauth2_instance = OAuth2Auth()
-            token, _ = oauth2_instance.create_access_token_with_key(
-                {"sub": str(agent.id)}, agent.oauth2_private_key
-            )
-            payload = oauth2_instance.verify_token_with_public_key(token, agent.public_key)
-            assert payload["sub"] == str(agent.id), "Token must verify with stored public key"
-
-            # Token signed with RS256 (check header)
-            header = jwt.get_unverified_header(token)
-            assert header["alg"] == "RS256", f"Expected RS256, got {header['alg']}"
+            # The client_assertion verification still uses RS256 — but the per-agent private key
+            # is held by the client, not stored in the DB
         finally:
             db.close()
             if os.path.exists(test_db_path):
                 os.remove(test_db_path)
+
+    def test_client_registers_public_key_and_server_verifies_assertion(self, client, db, demo_user):
+        """Client registers RSA public key, server verifies client_assertion (RS256)."""
+        from backend.db.models import Agent
+        from backend.auth.oauth2 import oauth2_auth
+
+        # 1. Create agent (no public key yet)
+        db_ops_anon = __import__('backend.db.operations', fromlist=['DatabaseOperations']).DatabaseOperations()
+        agent = db_ops_anon.create_agent(db=db, user_id=demo_user.id, name="Test Register Agent", auth_type="oauth2")
+
+        # Agent has no public key yet
+        assert agent.public_key is None
+
+        # 2. Register public key
+        public_pem, private_pem = oauth2_auth.create_rsa_keypair()
+        register_resp = client.post(
+            "/api/auth/oauth2/register",
+            data={"client_id": str(agent.id), "public_key_pem": public_pem}
+        )
+        assert register_resp.status_code == 200
+        assert "Public key registered" in register_resp.json()["message"]
+
+        # 3. Verify public key is stored
+        db.refresh(agent)
+        assert agent.public_key == public_pem
+
+        # 4. Client can now authenticate via client_assertion
+        assertion, _ = oauth2_auth.create_client_assertion(str(agent.id), private_pem)
+        token_resp = client.post(
+            "/api/auth/oauth2/token",
+            data={"client_id": str(agent.id), "client_assertion": assertion}
+        )
+        assert token_resp.status_code == 200
+        access_token = token_resp.json()["access_token"]
+
+        # 5. Access token verifies with server's HS256 secret
+        payload = oauth2_auth.verify_token(access_token)
+        assert payload["sub"] == str(agent.id)

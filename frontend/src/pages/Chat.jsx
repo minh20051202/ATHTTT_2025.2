@@ -4,6 +4,7 @@ import { useChatHistory } from '../context/ChatHistoryContext.jsx'
 import { chatApi, setAgentConfig } from '../services/chatApi.js'
 import { demoApi } from '../services/demoApi.js'
 import { computeProof } from '../lib/zkp.js'
+import { generateRSAKeyPair } from '../lib/oauth2.js'
 import ZKPFlow from '../components/ZKPFlow.jsx'
 import GhostResults from '../components/GhostResults.jsx'
 import IntentCard from '../components/IntentCard.jsx'
@@ -43,26 +44,31 @@ export default function Chat() {
     }
   }, [])
 
-  // Seed to get OAuth2 agent + key (one-time per session)
+  // Seed to get OAuth2 agent + key (one-time per session).
+  // Client generates its own RSA keypair and registers the public key with the server.
   useEffect(() => {
     async function seedAndSetup() {
       try {
         const seedRes = await demoApi.seed()
-        // Seed returns demo data including oauth2_agent with private_key
-        // In a real app: instructor provides the private_key out-of-band.
-        // For demo, the seed endpoint returns it once.
         const oauth2Agent = seedRes?.data?.oauth2_agent || seedRes?.data
-        if (oauth2Agent?.private_key) {
-          // Persist so refresh / concurrent mounts still work
-          window._demoOAuth2AgentId = oauth2Agent.id
-          window._demoPrivateKey = oauth2Agent.private_key
-          sessionStorage.setItem('demo_oauth2_creds', JSON.stringify({
-            id: oauth2Agent.id,
-            privateKey: oauth2Agent.private_key,
-          }))
-          setOauth2Credentials({ id: oauth2Agent.id, privateKey: oauth2Agent.private_key })
-          setOauth2TokenAcquired(true)
-        }
+        const agentId = oauth2Agent?.id
+        if (!agentId) return
+
+        // Client generates its own RSA keypair — private key never leaves the browser
+        const { privateKeyPem, publicKeyPem } = await generateRSAKeyPair()
+
+        // Register the public key with the server
+        await demoApi.registerOAuth2PublicKey(agentId, publicKeyPem)
+
+        // Persist so refresh / concurrent mounts still work
+        window._demoOAuth2AgentId = agentId
+        window._demoPrivateKey = privateKeyPem
+        sessionStorage.setItem('demo_oauth2_creds', JSON.stringify({
+          id: agentId,
+          privateKey: privateKeyPem,
+        }))
+        setOauth2Credentials({ id: agentId, privateKey: privateKeyPem })
+        setOauth2TokenAcquired(true)
       } catch (err) {
         console.warn('Seed failed (may already be seeded):', err.message)
       }

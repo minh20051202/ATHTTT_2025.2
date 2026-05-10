@@ -6,6 +6,34 @@
  */
 
 // ---------------------------------------------------------------------------
+// Key generation (WebCrypto SubtleCrypto)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate an RSA-2048 keypair using WebCrypto.
+ * Returns PEM strings and the raw CryptoKey for the private key.
+ */
+export async function generateRSAKeyPair() {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true, ['sign', 'verify']
+  )
+  const privateKeyBuffer = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey)
+  const publicKeyBuffer = await crypto.subtle.exportKey('spki', keyPair.publicKey)
+  return {
+    privateKeyPem: arrayBufferToPem(privateKeyBuffer, 'PRIVATE KEY'),
+    publicKeyPem: arrayBufferToPem(publicKeyBuffer, 'PUBLIC KEY'),
+    privateKeyCryptoKey: keyPair.privateKey,
+  }
+}
+
+function arrayBufferToPem(buffer, label) {
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+  const lines = base64.match(/.{1,64}/g) || []
+  return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----`
+}
+
+// ---------------------------------------------------------------------------
 // Key import (WebCrypto SubtleCrypto)
 // ---------------------------------------------------------------------------
 

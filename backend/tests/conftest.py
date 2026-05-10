@@ -110,17 +110,29 @@ def demo_user(db):
 
 @pytest.fixture(scope="function")
 def oauth2_agent(db, demo_user):
-    """Create an OAuth2 agent for testing."""
+    """Create an OAuth2 agent for testing.
+
+    Client generates its own keypair and registers public key via /api/auth/oauth2/register.
+    Server NEVER stores any per-agent private key.
+    """
+    from backend.auth.oauth2 import oauth2_auth
+
+    # Client (test) generates keypair — private never stored, public stored for client_assertion verify
+    public_pem, private_pem = oauth2_auth.create_rsa_keypair()
+
     agent = Agent(
         user_id=demo_user.id,
-        name="Test OAuth2 Agent",
+        name="Test OAuth2 Agent (PKJWT)",
         auth_type="oauth2",
-        credentials_hash="hash_oauth2",
-        public_key=None
+        credentials_hash=None,
+        public_key=public_pem,
+        oauth2_private_key=None,  # DEPRECATED: server never stores per-agent private key
     )
     db.add(agent)
     db.commit()
     db.refresh(agent)
+    # Client-side private key for signing assertions (not stored in DB)
+    agent._test_private_key = private_pem
     return agent
 
 
@@ -149,22 +161,28 @@ def zkp_agent(db, demo_user):
 
 @pytest.fixture(scope="function")
 def oauth2_pkjwt_agent(db, demo_user):
-    """Create an OAuth2 agent for PKJWT testing with a stored RSA public key."""
+    """Create an OAuth2 agent for PKJWT testing with stored RSA public key.
+
+    Client holds private key (for signing assertions). Server stores ONLY public key.
+    Access tokens are HS256 (server symmetric secret), not per-agent RS256.
+    """
     from backend.auth.oauth2 import oauth2_auth
 
+    # Client (test) generates a keypair — private held by test, public stored in DB
     public_pem, private_pem = oauth2_auth.create_rsa_keypair()
 
     agent = Agent(
         user_id=demo_user.id,
         name="Test OAuth2 PKJWT Agent",
         auth_type="oauth2",
-        credentials_hash=None,        # No bcrypt hash — this is a PKJWT agent
-        public_key=public_pem
+        credentials_hash=None,        # No bcrypt hash — PKJWT agent
+        public_key=public_pem,
+        oauth2_private_key=None,  # DEPRECATED: server never stores per-agent private key
     )
     db.add(agent)
     db.commit()
     db.refresh(agent)
-    # Client holds the private key — tests use it to sign assertions
+    # Client holds the private key — tests use it to sign client_assertions (RS256)
     agent._test_private_key = private_pem
     return agent
 

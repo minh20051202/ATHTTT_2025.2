@@ -108,13 +108,7 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
                 status_code=401
             )
         bearer_token = auth_header[7:]  # strip "Bearer "
-        if not agent.public_key:
-            raise AppError(
-                error_code=ErrorCode.INVALID_OPERATION,
-                message="OAuth2 agent has no public key",
-                status_code=500
-            )
-        payload = oauth2_auth.verify_token_with_public_key(bearer_token, agent.public_key)
+        payload = oauth2_auth.verify_token(bearer_token)
         token_info = oauth2_auth.get_token_info(bearer_token)
         auth_info = {
             "type": "oauth2",

@@ -91,9 +91,8 @@ async def seed_demo(db=Depends(get_db)):
         if not user:
             raise
 
-    # OAuth2 Agent — PKJWT: create_agent already generated and stored the per-agent
-    # signing keypair (public_key=verification key, oauth2_private_key=signing key).
-    # Seed returns the private signing key to the client once, for storage.
+    # OAuth2 Agent — PKJWT: create_agent creates agent record with public_key=NULL.
+    # Client generates its own RSA keypair, sends only public key via /api/auth/oauth2/register.
     oauth2_agent_record = db_ops.create_agent(
         db=db, user_id=user.id, name="OAuth2 Agent",
         auth_type="oauth2"
@@ -127,9 +126,7 @@ async def seed_demo(db=Depends(get_db)):
             "id": oauth2_agent_record.id,
             "name": oauth2_agent_record.name,
             "auth_type": oauth2_agent_record.auth_type,
-            "public_key": oauth2_agent_record.public_key,
-            "private_key": oauth2_agent_record.oauth2_private_key,
-            "note": "Private key shown once. Store it for the classroom demo."
+            "note": "Client must call POST /api/auth/oauth2/register with RSA public key. Private key never sent to server.",
         },
         "zkp_agent": {"id": zkp_agent.id, "name": zkp_agent.name, "auth_type": zkp_agent.auth_type,
                       "note": "Password is NOT stored on server. Client must provide it for authentication."},
@@ -210,21 +207,12 @@ async def oauth2_token_endpoint(
                 status_code=401
             )
 
-        # Mint access token using the agent's per-agent oauth2_private_key (RS256)
-        if not agent.oauth2_private_key:
-            # Lazy migration: pre-existing agents from before the per-agent key change
-            # have public_key (RSA verification key) but no oauth2_private_key.
-            # Generate and persist a matching keypair so tokens mint and verify correctly.
-            public_pem, private_pem = oauth2_auth.create_rsa_keypair()
-            agent.public_key = public_pem
-            agent.oauth2_private_key = private_pem
-            db.add(agent)
-            db.commit()
-            db.refresh(agent)
-        access_token, sign_time = oauth2_auth.create_access_token_with_key(
+        # Mint access token using server-side symmetric key (HS256)
+        access_token = oauth2_auth.create_access_token(
             data={"sub": str(agent.id), "agent_name": agent.name, "type": "oauth2"},
-            private_key_pem=agent.oauth2_private_key,
         )
+        # HS256 signing is too fast to measure; use 0 for the sign_time field
+        sign_time = 0
 
         token_info = oauth2_auth.get_token_info(access_token)
         return {
@@ -240,6 +228,47 @@ async def oauth2_token_endpoint(
         raise AppError(
             error_code="AUTH_FAILED",
             message=f"OAuth2 token generation failed: {str(e)}",
+            status_code=500
+        )
+
+
+@app.post("/api/auth/oauth2/register")
+async def oauth2_register_agent(
+    client_id: str = Form(...),
+    public_key_pem: str = Form(...),
+    db=Depends(get_db)
+):
+    """Register an OAuth2 agent's public key. Server never stores the private key."""
+    try:
+        agent_id = int(client_id)
+        from .db.models import Agent
+        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        if not agent:
+            raise AppError(
+                error_code="AGENT_NOT_FOUND",
+                message="Agent not found",
+                status_code=404
+            )
+        if agent.auth_type != "oauth2":
+            raise AppError(
+                error_code="INVALID_AUTH_TYPE",
+                message="This endpoint only supports OAuth2 agents",
+                status_code=400
+            )
+        agent.public_key = public_key_pem
+        db.commit()
+        return {
+            "client_id": str(agent.id),
+            "name": agent.name,
+            "auth_type": agent.auth_type,
+            "message": "Public key registered successfully. Server NEVER stores the private key."
+        }
+    except AppError as e:
+        raise e
+    except Exception as e:
+        raise AppError(
+            error_code="REGISTRATION_FAILED",
+            message=f"Failed to register OAuth2 agent: {str(e)}",
             status_code=500
         )
 
