@@ -144,9 +144,9 @@ function Badge({ type, label }) {
   return (
     <span style={{
       display: 'inline-block',
-      padding: '1px 7px',
-      borderRadius: '4px',
-      fontSize: '10px',
+      padding: '2px 9px',
+      borderRadius: '5px',
+      fontSize: '12px',
       fontWeight: 700,
       fontFamily: 'var(--font-mono)',
       letterSpacing: '0.04em',
@@ -177,7 +177,7 @@ function StepRow({ id, step, index, expanded, onToggle }) {
         gridTemplateColumns: 'auto 1fr auto',
         gap: 'var(--space-3)',
         alignItems: 'start',
-        padding: '6px var(--space-3)',
+        padding: '10px var(--space-3)',
         borderBottom: '1px solid var(--color-border)',
         opacity: 0,
         transform: 'translateY(6px)',
@@ -185,7 +185,7 @@ function StepRow({ id, step, index, expanded, onToggle }) {
         animationDelay: `calc(var(--step-index, 0) * 150ms)`,
         '--step-index': index,
         fontFamily: 'var(--font-mono)',
-        fontSize: '12px',
+        fontSize: '14px',
         lineHeight: 1.5,
       }}
     >
@@ -203,7 +203,7 @@ function StepRow({ id, step, index, expanded, onToggle }) {
             padding: 'var(--space-3)',
             background: 'var(--color-bg)',
             borderRadius: 'var(--border-radius-sm)',
-            fontSize: '11px',
+            fontSize: '13px',
             fontFamily: 'var(--font-mono)',
             color: 'var(--color-muted)',
             whiteSpace: 'pre-wrap',
@@ -227,7 +227,7 @@ function StepRow({ id, step, index, expanded, onToggle }) {
             color: 'var(--color-muted)',
             cursor: 'pointer',
             padding: '2px 4px',
-            fontSize: '11px',
+            fontSize: '13px',
             fontFamily: 'var(--font-mono)',
             flexShrink: 0,
             lineHeight: 1.4,
