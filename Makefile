@@ -13,19 +13,14 @@ help: ## Show this help
 
 # ── Backend ──────────────────────────────────────────────────────────────────
 backend: ## Start backend on :8000 (kills existing)
-	@pkill -f "uvicorn backend.main:app" 2>/dev/null || true
-	@sleep 1
-	@echo "Starting backend on :$(PORT_BACKEND)..."
-	cd $(BACKEND_DIR) && \
-		PYTHONPATH=$(PYTHONPATH) \
-		uv run uvicorn backend.main:app \
-		--port $(PORT_BACKEND) \
-		--host 0.0.0.0 \
-		&> /tmp/backend.log &
+	@fuser -k $(PORT_BACKEND)/tcp 2>/dev/null || true
 	@sleep 2
+	@echo "Starting backend on :$(PORT_BACKEND)..."
+	PYTHONPATH=$(shell pwd) uv run --directory $(BACKEND_DIR) uvicorn backend.main:app --port $(PORT_BACKEND) --host 0.0.0.0 &> /tmp/backend.log &
+	@sleep 4
 	@curl -s http://localhost:$(PORT_BACKEND)/health > /dev/null \
 		&& echo "Backend healthy on :$(PORT_BACKEND)" \
-		|| (echo "Backend NOT responding — see /tmp/backend.log" && cat /tmp/backend.log)
+		|| (echo "Backend NOT responding — see /tmp/backend.log" && tail -20 /tmp/backend.log)
 
 backend-log: ## Tail backend log
 	@tail -f /tmp/backend.log
@@ -44,7 +39,7 @@ seed: ## Seed demo data (creates OAuth2 + ZKP agents + 4 products)
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test-backend: ## Run backend tests
-	@cd $(BACKEND_DIR) && pytest -v
+	@cd $(BACKEND_DIR) && PYTHONPATH=.. uv run pytest -v
 
 test-frontend: ## Run frontend build/lint
 	@cd $(FRONTEND_DIR) && npm run build
@@ -55,5 +50,5 @@ install: ## Install frontend dependencies
 
 # ── Kill ─────────────────────────────────────────────────────────────────────
 kill: ## Stop all running servers
-	@pkill -f "uvicorn backend.main:app" 2>/dev/null && echo "Backend stopped" || echo "No backend running"
+	@fuser -k $(PORT_BACKEND)/tcp 2>/dev/null && echo "Backend stopped" || echo "No backend running"
 	@pkill -f "vite" 2>/dev/null && echo "Frontend stopped" || echo "No frontend running"
