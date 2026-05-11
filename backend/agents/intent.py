@@ -160,7 +160,7 @@ class ToolCaller:
     def __init__(self):
         self.available_tools = {
             "search_products": self._search_products,
-            "compare_prices": self._compare_prices,
+            "compare_products": self._compare_products,
             "execute_purchase": self._execute_purchase,
             "get_product_details": self._get_product_details
         }
@@ -184,7 +184,7 @@ class ToolCaller:
 
         # Call the tool
         tool_fn = self.available_tools[intent.action]
-        if intent.action in ("search_products", "get_product_details", "execute_purchase"):
+        if intent.action in ("search_products", "compare_products", "execute_purchase"):
             result = await tool_fn(intent.parameters, auth_type, agent_id, db)
         else:
             result = await tool_fn(intent.parameters, auth_type, agent_id)
@@ -250,21 +250,78 @@ class ToolCaller:
             "count": len(results)
         }
 
-    async def _compare_prices(
+    async def _compare_products(
         self,
         params: Dict[str, Any],
         auth_type: str,
-        agent_id: Optional[int]
+        agent_id: Optional[int],
+        db: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """Compare prices of products."""
-        product_ids = params.get("product_ids", [])
-        return {
-            "action": "compare_prices",
-            "comparisons": [
+        """Compare prices of products using DB query with flexible OR conditions."""
+        from sqlalchemy import or_
+        from ..db.models import Product
+
+        comparisons = []
+        cheapest = None
+
+        if db is not None:
+            query = db.query(Product)
+
+            product_ids = params.get("product_ids", [])
+            product_names = params.get("product_names", [])
+            category = params.get("category", "").strip()
+
+            # Build filter conditions
+            filters = []
+
+            if product_ids:
+                filters.append(Product.id.in_(product_ids))
+
+            if product_names:
+                name_filters = [Product.name.ilike(f"%{n}%") for n in product_names]
+                filters.append(or_(*name_filters))
+
+            if category:
+                filters.append(Product.category.ilike(f"%{category}%"))
+
+            # Apply filters if any
+            if filters:
+                query = query.filter(*filters)
+
+            rows = query.limit(10).all()
+            comparisons = [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description,
+                    "price": p.price,
+                    "stock": p.stock,
+                    "category": p.category,
+                }
+                for p in rows
+            ]
+
+            # Find cheapest
+            if comparisons:
+                cheapest = min(comparisons, key=lambda p: p["price"])
+        else:
+            # Fallback if no DB session
+            comparisons = [
                 {"id": 1, "name": "Laptop", "price": 999.99},
                 {"id": 2, "name": "Phone", "price": 699.99}
-            ],
-            "cheapest": {"id": 2, "name": "Phone", "price": 699.99}
+            ]
+            cheapest = {"id": 2, "name": "Phone", "price": 699.99}
+
+        # Store in agent context
+        if agent_id is not None:
+            ctx = get_agent_context(agent_id)
+            ctx["last_searched"] = comparisons
+
+        return {
+            "action": "compare_products",
+            "comparisons": comparisons,
+            "count": len(comparisons),
+            "cheapest": cheapest
         }
 
     async def _execute_purchase(
