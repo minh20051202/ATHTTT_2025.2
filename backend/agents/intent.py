@@ -75,18 +75,25 @@ class IntentExtraction:
         start_time = time.time()
 
         try:
-            prompt = f"""
-You are an AI Agent intent extractor. Analyze the user's message and extract the intent.
+            prompt = f"""You are an AI Commerce Agent intent extractor. Analyze the user's message and extract the intent.
 
 User message: "{user_message}"
 
 Rules:
-- If the user wants to BUY or PURCHASE something, return "execute_purchase" with product_name in parameters. The server will resolve the name to a product_id via DB lookup.
-- If the user asks to SEARCH, BROWSE, or SHOW products, return "search_products" with product_name or max_price.
-- If the user provides an exact product_id, use execute_purchase with product_id.
-- When ambiguous (multiple matches possible), execute_purchase uses the first matching product.
+- If the user wants to BUY or PURCHASE something, return "execute_purchase" with product_name or product_id in parameters.
+- If the user provides an exact product_id, use execute_purchase with product_id directly.
+- If the user asks to SEARCH, BROWSE, SHOW, or FIND products, return "search_products" with product_name, category, or max_price.
+- If the user wants to ADD an item to their cart, return "add_to_cart" with product_name or product_id and quantity.
+- If the user wants to VIEW their cart, return "view_cart" with no parameters.
+- If the user wants to REMOVE an item from cart, return "remove_from_cart" with product_id.
+- If the user wants to UPDATE item quantity in cart, return "update_cart_quantity" with product_id and quantity.
+- If the user says CHECKOUT, BUY NOW, or CONFIRM ORDER, return "checkout" with no parameters.
+- If the user wants to COMPARE products, return "compare_products" with product_ids or product_names (list) or category.
+- If the user wants product DETAILS or DESCRIPTION, return "get_product_details" with product_id or product_name.
+- Context references ("first one", "cheapest", "that one", "it") resolve to a previously-searched product — include as product_name for server-side resolution.
+- When multiple products match, use the first match (lowest id).
 
-Actions available: "search_products", "compare_prices", "execute_purchase", "get_product_details"
+Actions available: "search_products", "compare_products", "execute_purchase", "get_product_details", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity", "checkout"
 
 Respond in JSON format only:
 {{
@@ -101,7 +108,15 @@ Examples:
 - "show me phones" → {{"action": "search_products", "parameters": {{"product_name": "phone"}}, "confidence": 0.9}}
 - "search for headphones under 100" → {{"action": "search_products", "parameters": {{"product_name": "headphones", "max_price": 100}}, "confidence": 0.95}}
 - "buy phone id 3" → {{"action": "execute_purchase", "parameters": {{"product_id": 3}}, "confidence": 0.95}}
-"""
+- "add laptop to my cart" → {{"action": "add_to_cart", "parameters": {{"product_name": "laptop", "quantity": 1}}, "confidence": 0.95}}
+- "show my cart" → {{"action": "view_cart", "parameters": {{}}, "confidence": 0.95}}
+- "remove the phone from my cart" → {{"action": "remove_from_cart", "parameters": {{"product_id": 3}}, "confidence": 0.95}}
+- "change quantity to 3" → {{"action": "update_cart_quantity", "parameters": {{"product_id": 3, "quantity": 3}}, "confidence": 0.9}}
+- "checkout" → {{"action": "checkout", "parameters": {{}}, "confidence": 0.95}}
+- "compare laptop and phone" → {{"action": "compare_products", "parameters": {{"product_names": ["laptop", "phone"]}}, "confidence": 0.95}}
+- "compare prices for electronics" → {{"action": "compare_products", "parameters": {{"category": "electronics"}}, "confidence": 0.9}}
+- "tell me about the first one" → {{"action": "get_product_details", "parameters": {{"product_name": "first one"}}, "confidence": 0.8}}
+- "buy that one" → {{"action": "execute_purchase", "parameters": {{"product_name": "that one"}}, "confidence": 0.85}}"""
 
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
