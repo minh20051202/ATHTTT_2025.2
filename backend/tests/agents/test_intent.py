@@ -1,5 +1,8 @@
+import pytest
+from backend.agents.intent import _resolve_product_ref, _agent_context, get_agent_context
+
+
 def test_resolve_first_one_from_context():
-    from backend.agents.intent import _resolve_product_ref, _agent_context
     agent_id = 999
     _agent_context[agent_id] = {
         "last_searched": [
@@ -16,9 +19,7 @@ def test_resolve_first_one_from_context():
 
 
 def test_get_agent_context_creates_fresh_context():
-    from backend.agents.intent import get_agent_context, _agent_context
     agent_id = 888
-    # Ensure clean state
     _agent_context.pop(agent_id, None)
     ctx = get_agent_context(agent_id)
     assert ctx["last_searched"] == []
@@ -27,7 +28,6 @@ def test_get_agent_context_creates_fresh_context():
 
 
 def test_resolve_product_ref_empty_last_searched():
-    from backend.agents.intent import _resolve_product_ref, _agent_context
     agent_id = 777
     _agent_context[agent_id] = {
         "last_searched": [],
@@ -39,7 +39,6 @@ def test_resolve_product_ref_empty_last_searched():
 
 
 def test_resolve_product_ref_most_expensive():
-    from backend.agents.intent import _resolve_product_ref, _agent_context
     agent_id = 666
     _agent_context[agent_id] = {
         "last_searched": [
@@ -53,3 +52,228 @@ def test_resolve_product_ref_most_expensive():
     assert _resolve_product_ref("most expensive", agent_id, None) == 10
     assert _resolve_product_ref("highest price", agent_id, None) == 10
     assert _resolve_product_ref("priciest", agent_id, None) == 10
+
+
+@pytest.mark.asyncio
+async def test_add_to_cart_increases_count():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1001
+    _agent_context.pop(agent_id, None)
+    ctx = get_agent_context(agent_id)
+    assert ctx["cart"] == []
+
+    intent = Intent(action="add_to_cart", parameters={"product_id": 5, "quantity": 2})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["action"] == "add_to_cart"
+    assert result["product_id"] == 5
+    assert result["quantity"] == 2
+    assert result["cart_count"] == 1
+    assert ctx["cart"] == [{"product_id": 5, "quantity": 2}]
+
+
+@pytest.mark.asyncio
+async def test_add_to_cart_existing_item_increments_quantity():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1002
+    _agent_context[agent_id] = {"last_searched": [], "cart": [{"product_id": 3, "quantity": 1}], "last_viewed": None}
+
+    intent = Intent(action="add_to_cart", parameters={"product_id": 3, "quantity": 4})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["quantity"] == 4
+    assert _agent_context[agent_id]["cart"] == [{"product_id": 3, "quantity": 5}]
+
+
+@pytest.mark.asyncio
+async def test_view_cart_empty():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1003
+    _agent_context.pop(agent_id, None)
+    get_agent_context(agent_id)
+
+    intent = Intent(action="view_cart", parameters={})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["action"] == "view_cart"
+    assert result["items"] == []
+    assert result["total"] == 0
+    assert result["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_remove_from_cart():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1004
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 7, "quantity": 2}, {"product_id": 9, "quantity": 1}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="remove_from_cart", parameters={"product_id": 7})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["action"] == "remove_from_cart"
+    assert result["removed"] is True
+    assert _agent_context[agent_id]["cart"] == [{"product_id": 9, "quantity": 1}]
+
+
+@pytest.mark.asyncio
+async def test_remove_from_cart_not_found():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1005
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 7, "quantity": 2}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="remove_from_cart", parameters={"product_id": 99})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["removed"] is False
+    assert _agent_context[agent_id]["cart"] == [{"product_id": 7, "quantity": 2}]
+
+
+@pytest.mark.asyncio
+async def test_update_cart_quantity_updates_qty():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1006
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 4, "quantity": 2}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="update_cart_quantity", parameters={"product_id": 4, "quantity": 5})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["removed"] is False
+    assert result["quantity"] == 5
+    assert _agent_context[agent_id]["cart"] == [{"product_id": 4, "quantity": 5}]
+
+
+@pytest.mark.asyncio
+async def test_update_cart_quantity_removes_when_zero():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1007
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 4, "quantity": 2}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="update_cart_quantity", parameters={"product_id": 4, "quantity": 0})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["removed"] is True
+    assert result["quantity"] == 0
+    assert _agent_context[agent_id]["cart"] == []
+
+
+@pytest.mark.asyncio
+async def test_update_cart_quantity_removes_when_negative():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 1008
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 4, "quantity": 2}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="update_cart_quantity", parameters={"product_id": 4, "quantity": -1})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["removed"] is True
+    assert _agent_context[agent_id]["cart"] == []
+
+
+# Cart management tests with specified agent_ids
+
+@pytest.mark.asyncio
+async def test_add_to_cart():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 999
+    _agent_context.pop(agent_id, None)
+    get_agent_context(agent_id)
+
+    intent = Intent(action="add_to_cart", parameters={"product_id": 1, "quantity": 2})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["action"] == "add_to_cart"
+    assert result["product_id"] == 1
+    assert result["quantity"] == 2
+
+
+@pytest.mark.asyncio
+async def test_view_cart_with_items(db, sample_products):
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 888
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": sample_products[0].id, "quantity": 2}, {"product_id": sample_products[1].id, "quantity": 1}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="view_cart", parameters={})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, db)
+
+    assert result["action"] == "view_cart"
+    assert result["count"] == 2
+    assert result["total"] > 0
+    # Clean up
+    _agent_context[agent_id]["cart"] = []
+
+
+@pytest.mark.asyncio
+async def test_remove_from_cart():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 777
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 3, "quantity": 1}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="remove_from_cart", parameters={"product_id": 3})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["removed"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_cart_quantity():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 666
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 5, "quantity": 1}],
+        "last_viewed": None,
+    }
+
+    # Update qty to 3
+    intent = Intent(action="update_cart_quantity", parameters={"product_id": 5, "quantity": 3})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["quantity"] == 3
+    assert result["removed"] is False
+
+    # Set to 0 — should be removed
+    intent = Intent(action="update_cart_quantity", parameters={"product_id": 5, "quantity": 0})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["quantity"] == 0
+    assert result["removed"] is True
