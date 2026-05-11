@@ -167,6 +167,7 @@ class ToolCaller:
             "view_cart": self._view_cart,
             "remove_from_cart": self._remove_from_cart,
             "update_cart_quantity": self._update_cart_quantity,
+            "checkout": self._checkout,
         }
 
     async def call_tool(
@@ -188,7 +189,7 @@ class ToolCaller:
 
         # Call the tool
         tool_fn = self.available_tools[intent.action]
-        if intent.action in ("search_products", "compare_products", "execute_purchase", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity"):
+        if intent.action in ("search_products", "compare_products", "execute_purchase", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity", "checkout"):
             result = await tool_fn(intent.parameters, auth_type, agent_id, db)
         else:
             result = await tool_fn(intent.parameters, auth_type, agent_id)
@@ -582,6 +583,88 @@ class ToolCaller:
             "quantity": quantity if found else 0,
             "removed": False,
             "updated": found,
+        }
+
+    async def _checkout(
+        self,
+        params: Dict[str, Any],
+        auth_type: str,
+        agent_id: Optional[int],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        from ..db.models import Product, Transaction
+
+        ctx = get_agent_context(agent_id)
+        cart = ctx.get("cart", [])
+
+        if not cart:
+            raise AppError(
+                error_code=ErrorCode.INVALID_OPERATION,
+                message="Cart is empty",
+                status_code=400
+            )
+
+        if not db:
+            raise AppError(
+                error_code=ErrorCode.INVALID_OPERATION,
+                message="DB required for checkout",
+                status_code=500
+            )
+
+        product_ids = [item["product_id"] for item in cart]
+        products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+        product_map = {p.id: p for p in products}
+
+        items = []
+        quantities = []
+        total = 0.0
+
+        for item in cart:
+            product = product_map.get(item["product_id"])
+            if not product:
+                raise AppError(
+                    error_code=ErrorCode.RESOURCE_NOT_FOUND,
+                    message=f"Product {item['product_id']} not found",
+                    status_code=404
+                )
+            if product.stock < item["quantity"]:
+                raise AppError(
+                    error_code=ErrorCode.INVALID_OPERATION,
+                    message=f"Insufficient stock for '{product.name}': requested {item['quantity']}, available {product.stock}",
+                    status_code=400
+                )
+            product.stock -= item["quantity"]
+            subtotal = product.price * item["quantity"]
+            items.append({
+                "product_id": product.id,
+                "name": product.name,
+                "quantity": item["quantity"],
+                "unit_price": product.price,
+                "subtotal": subtotal,
+            })
+            quantities.append(item["quantity"])
+            total += subtotal
+
+        transaction = Transaction(
+            agent_id=agent_id,
+            product_id=product_ids[0] if product_ids else None,
+            amount=sum(quantities),
+            total_price=round(total, 2),
+            auth_type_used=auth_type,
+            status="completed"
+        )
+        db.add(transaction)
+        db.commit()
+
+        ctx["cart"] = []
+
+        return {
+            "action": "checkout",
+            "items": items,
+            "total": round(total, 2),
+            "transaction_id": transaction.id,
+            "status": "completed",
+            "message": f"Order placed. Transaction #{transaction.id}"
         }
 
 

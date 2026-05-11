@@ -295,3 +295,44 @@ async def test_update_cart_quantity_nonexistent():
 
     assert result["updated"] is False
     assert result["removed"] is False
+
+
+@pytest.mark.asyncio
+async def test_checkout_empty_cart_raises():
+    from backend.agents.intent import Intent, tool_caller, get_agent_context
+    from backend.utils.errors import AppError
+
+    agent_id = 555
+    _agent_context.pop(agent_id, None)
+    get_agent_context(agent_id)
+    assert get_agent_context(agent_id)["cart"] == []
+
+    intent = Intent(action="checkout", parameters={})
+    with pytest.raises(AppError) as exc_info:
+        await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert "empty" in exc_info.value.message.lower()
+
+
+@pytest.mark.asyncio
+async def test_checkout_success(db, sample_products):
+    from backend.agents.intent import Intent, tool_caller, get_agent_context
+
+    agent_id = 555
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [
+            {"product_id": sample_products[0].id, "quantity": 2},
+            {"product_id": sample_products[1].id, "quantity": 3},
+        ],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="checkout", parameters={})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, db)
+
+    assert result["action"] == "checkout"
+    assert result["transaction_id"] is not None
+    assert result["total"] > 0
+    assert result["status"] == "completed"
+    assert get_agent_context(agent_id)["cart"] == []
