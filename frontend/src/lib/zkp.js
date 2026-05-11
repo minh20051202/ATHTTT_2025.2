@@ -96,10 +96,10 @@ async function createPublicKey(password) {
   const x = await hashSecret(password);
   const y = modPow(G, x, P);
   return JSON.stringify({
-    y: y.toString(),
-    p: P.toString(),
-    g: G.toString(),
-    q: Q.toString(),
+    y: y.toString(16),              // hex — server expects hex for y
+    p: P.toString(16),
+    g: G.toString(16),
+    q: Q.toString(16),
   });
 }
 
@@ -127,9 +127,9 @@ async function generateKeyPair() {
   const y = modPow(G, x, P);           // public key — sent to server during registration
 
   return {
-    privateKey: x.toString(),         // hex — used for proof signing
+    privateKey: x.toString(16),     // hex string — signWithPrivateKeyHex expects hex
     publicKey: JSON.stringify({
-      y: y.toString(16),              // hex — sent to server
+      y: y.toString(16),             // hex — server parses with int(v, 16)
       p: P.toString(16),
       g: G.toString(16),
       q: Q.toString(16),
