@@ -90,10 +90,11 @@ Rules:
 - If the user says CHECKOUT, BUY NOW, or CONFIRM ORDER, return "checkout" with no parameters.
 - If the user wants to COMPARE products, return "compare_products" with product_ids or product_names (list) or category.
 - If the user wants product DETAILS or DESCRIPTION, return "get_product_details" with product_id or product_name.
+- If the user wants to see their ORDER HISTORY or PAST ORDERS, return "get_order_history" with optional limit and offset.
 - Context references ("first one", "cheapest", "that one", "it") resolve to a previously-searched product — include as product_name for server-side resolution.
 - When multiple products match, use the first match (lowest id).
 
-Actions available: "search_products", "compare_products", "execute_purchase", "get_product_details", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity", "checkout"
+Actions available: "search_products", "compare_products", "execute_purchase", "get_product_details", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity", "checkout", "get_order_history"
 
 Respond in JSON format only:
 {{
@@ -116,7 +117,7 @@ Examples:
 - "compare laptop and phone" → {{"action": "compare_products", "parameters": {{"product_names": ["laptop", "phone"]}}, "confidence": 0.95}}
 - "compare prices for electronics" → {{"action": "compare_products", "parameters": {{"category": "electronics"}}, "confidence": 0.9}}
 - "tell me about the first one" → {{"action": "get_product_details", "parameters": {{"product_name": "first one"}}, "confidence": 0.8}}
-- "buy that one" → {{"action": "execute_purchase", "parameters": {{"product_name": "that one"}}, "confidence": 0.85}}"""
+- "show my order history" → {{"action": "get_order_history", "parameters": {{}}, "confidence": 0.95}}"""
 
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
