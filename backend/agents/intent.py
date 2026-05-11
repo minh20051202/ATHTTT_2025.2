@@ -162,7 +162,11 @@ class ToolCaller:
             "search_products": self._search_products,
             "compare_products": self._compare_products,
             "execute_purchase": self._execute_purchase,
-            "get_product_details": self._get_product_details
+            "get_product_details": self._get_product_details,
+            "add_to_cart": self._add_to_cart,
+            "view_cart": self._view_cart,
+            "remove_from_cart": self._remove_from_cart,
+            "update_cart_quantity": self._update_cart_quantity,
         }
 
     async def call_tool(
@@ -184,7 +188,7 @@ class ToolCaller:
 
         # Call the tool
         tool_fn = self.available_tools[intent.action]
-        if intent.action in ("search_products", "compare_products", "execute_purchase"):
+        if intent.action in ("search_products", "compare_products", "execute_purchase", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity"):
             result = await tool_fn(intent.parameters, auth_type, agent_id, db)
         else:
             result = await tool_fn(intent.parameters, auth_type, agent_id)
@@ -438,6 +442,146 @@ class ToolCaller:
         return {
             "action": "get_product_details",
             "product": product_dict
+        }
+
+    async def _add_to_cart(
+        self,
+        params: Dict[str, Any],
+        auth_type: str,
+        agent_id: Optional[int],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        from ..db.models import Product
+
+        product_id = params.get("product_id")
+        product_name = params.get("product_name")
+        quantity = params.get("quantity", 1)
+
+        # Resolve product_name to product_id via DB if needed
+        if not product_id and product_name and db:
+            rows = db.query(Product).filter(Product.name.ilike(f"%{product_name.strip()}%")).limit(1).all()
+            if rows:
+                product_id = rows[0].id
+            else:
+                raise AppError(error_code=ErrorCode.RESOURCE_NOT_FOUND, message=f"No product found: {product_name}", status_code=404)
+        if not product_id:
+            raise AppError(error_code=ErrorCode.MISSING_PARAMETER, message="product_id or product_name required", status_code=400)
+
+        ctx = get_agent_context(agent_id)
+        cart = ctx["cart"]
+
+        existing = next((item for item in cart if item["product_id"] == product_id), None)
+        if existing:
+            existing["quantity"] += quantity
+        else:
+            cart.append({"product_id": product_id, "quantity": quantity})
+
+        return {
+            "action": "add_to_cart",
+            "product_id": product_id,
+            "quantity": quantity,
+            "cart_count": len(cart),
+            "message": f"Added to cart (qty: {quantity})",
+        }
+
+    async def _view_cart(
+        self,
+        params: Dict[str, Any],
+        auth_type: str,
+        agent_id: Optional[int],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        from ..db.models import Product
+
+        ctx = get_agent_context(agent_id)
+        cart = ctx.get("cart", [])
+
+        if not cart:
+            return {"action": "view_cart", "items": [], "total": 0, "count": 0}
+
+        product_ids = [item["product_id"] for item in cart]
+        products = db.query(Product).filter(Product.id.in_(product_ids)).all() if db else []
+        product_map = {p.id: p for p in products}
+
+        items = []
+        total = 0
+        for item in cart:
+            product = product_map.get(item["product_id"])
+            if product:
+                item_total = product.price * item["quantity"]
+                items.append({
+                    "product_id": product.id,
+                    "name": product.name,
+                    "quantity": item["quantity"],
+                    "unit_price": product.price,
+                    "subtotal": item_total,
+                })
+                total += item_total
+
+        return {
+            "action": "view_cart",
+            "items": items,
+            "total": round(total, 2),
+            "count": len(items),
+        }
+
+    async def _remove_from_cart(
+        self,
+        params: Dict[str, Any],
+        auth_type: str,
+        agent_id: Optional[int],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        product_id = params.get("product_id")
+        if not product_id:
+            raise AppError(error_code=ErrorCode.MISSING_PARAMETER, message="product_id required", status_code=400)
+
+        ctx = get_agent_context(agent_id)
+        cart = ctx.get("cart", [])
+        original_len = len(cart)
+        ctx["cart"] = [item for item in cart if item["product_id"] != product_id]
+
+        removed = len(ctx["cart"]) < original_len
+        return {
+            "action": "remove_from_cart",
+            "product_id": product_id,
+            "removed": removed,
+            "remaining_count": len(ctx["cart"]),
+        }
+
+    async def _update_cart_quantity(
+        self,
+        params: Dict[str, Any],
+        auth_type: str,
+        agent_id: Optional[int],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        product_id = params.get("product_id")
+        quantity = params.get("quantity", 0)
+
+        if not product_id:
+            raise AppError(error_code=ErrorCode.MISSING_PARAMETER, message="product_id required", status_code=400)
+
+        ctx = get_agent_context(agent_id)
+        cart = ctx.get("cart", [])
+
+        if quantity <= 0:
+            ctx["cart"] = [item for item in cart if item["product_id"] != product_id]
+            return {"action": "update_cart_quantity", "product_id": product_id, "quantity": 0, "removed": True}
+
+        found = False
+        for item in cart:
+            if item["product_id"] == product_id:
+                item["quantity"] = quantity
+                found = True
+                break
+
+        return {
+            "action": "update_cart_quantity",
+            "product_id": product_id,
+            "quantity": quantity if found else 0,
+            "removed": False,
+            "updated": found,
         }
 
 

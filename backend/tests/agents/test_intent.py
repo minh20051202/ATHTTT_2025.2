@@ -277,3 +277,21 @@ async def test_update_cart_quantity():
 
     assert result["quantity"] == 0
     assert result["removed"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_cart_quantity_nonexistent():
+    from backend.agents.intent import Intent, tool_caller
+
+    agent_id = 667
+    _agent_context[agent_id] = {
+        "last_searched": [],
+        "cart": [{"product_id": 5, "quantity": 1}],
+        "last_viewed": None,
+    }
+
+    intent = Intent(action="update_cart_quantity", parameters={"product_id": 9999, "quantity": 3})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id, None)
+
+    assert result["updated"] is False
+    assert result["removed"] is False
