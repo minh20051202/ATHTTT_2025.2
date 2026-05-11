@@ -343,6 +343,12 @@ class ToolCaller:
 
         product = None
 
+        # First try context-aware resolution if product_id not provided
+        if product_id is None and product_name and agent_id is not None:
+            resolved_id = _resolve_product_ref(product_name, agent_id, db)
+            if resolved_id is not None:
+                product_id = resolved_id
+
         if db is not None:
             if product_id is not None:
                 product = db.query(Product).filter(Product.id == product_id).first()
