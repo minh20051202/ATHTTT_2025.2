@@ -7,6 +7,54 @@ import time
 import json
 
 
+# Module-level per-agent context store
+_agent_context: Dict[int, Dict[str, Any]] = {}
+
+
+def get_agent_context(agent_id: int) -> Dict[str, Any]:
+    """Get or create per-agent context dict."""
+    if agent_id not in _agent_context:
+        _agent_context[agent_id] = {
+            "last_searched": [],   # List[dict] — products from last search
+            "cart": [],            # List[dict] — {"product_id": int, "quantity": int}
+            "last_viewed": None,   # dict — last viewed product
+        }
+    return _agent_context[agent_id]
+
+
+def _resolve_product_ref(ref: str, agent_id: int, db: Any) -> Optional[int]:
+    """Resolve context references to a product_id.
+
+    Handles: "first one", "second one", "cheapest", "most expensive", etc.
+    Returns product_id (int) or None if no match.
+    """
+    ctx = get_agent_context(agent_id)
+    last_searched = ctx.get("last_searched", [])
+
+    if not last_searched:
+        return None
+
+    ref_lower = ref.lower().strip()
+
+    # Positional references
+    if ref_lower in ("first one", "first", "the first", "it", "that one"):
+        return last_searched[0]["id"]
+
+    if ref_lower in ("second one", "second", "the second"):
+        if len(last_searched) > 1:
+            return last_searched[1]["id"]
+        return None
+
+    # Price-based references
+    if ref_lower in ("cheapest", "lowest price", "least expensive"):
+        return min(last_searched, key=lambda p: p["price"])["id"]
+
+    if ref_lower in ("most expensive", "highest price", "priciest"):
+        return max(last_searched, key=lambda p: p["price"])["id"]
+
+    return None
+
+
 class Intent(BaseModel):
     """Extracted intent from natural language."""
     action: str = Field(..., description="The action to perform")
@@ -33,10 +81,10 @@ You are an AI Agent intent extractor. Analyze the user's message and extract the
 User message: "{user_message}"
 
 Rules:
-- If the user wants to BUY or PURCHASE something but does NOT specify an exact product ID, you MUST return action "search_products" with the product_name parameter. NEVER call execute_purchase without a product_id — you do not have access to a product catalog to look up IDs.
-- If the user asks about a product category (e.g. "phones", "laptops", "headphones") without specifying an exact product, return "search_products" with product_name or category.
-- Only return "execute_purchase" when the user explicitly names a specific product or provides a product_id.
-- If unsure which product the user means, default to "search_products" so the system can show options.
+- If the user wants to BUY or PURCHASE something, return "execute_purchase" with product_name in parameters. The server will resolve the name to a product_id via DB lookup.
+- If the user asks to SEARCH, BROWSE, or SHOW products, return "search_products" with product_name or max_price.
+- If the user provides an exact product_id, use execute_purchase with product_id.
+- When ambiguous (multiple matches possible), execute_purchase uses the first matching product.
 
 Actions available: "search_products", "compare_prices", "execute_purchase", "get_product_details"
 
@@ -48,10 +96,11 @@ Respond in JSON format only:
 }}
 
 Examples:
-- "buy phone" → {{"action": "search_products", "parameters": {{"product_name": "phone"}}, "confidence": 0.9}}
-- "buy phone id 3" → {{"action": "execute_purchase", "parameters": {{"product_id": 3}}, "confidence": 0.95}}
-- "show me laptops" → {{"action": "search_products", "parameters": {{"product_name": "laptop"}}, "confidence": 0.9}}
+- "buy smartphone" → {{"action": "execute_purchase", "parameters": {{"product_name": "smartphone"}}, "confidence": 0.95}}
+- "purchase a laptop" → {{"action": "execute_purchase", "parameters": {{"product_name": "laptop"}}, "confidence": 0.95}}
+- "show me phones" → {{"action": "search_products", "parameters": {{"product_name": "phone"}}, "confidence": 0.9}}
 - "search for headphones under 100" → {{"action": "search_products", "parameters": {{"product_name": "headphones", "max_price": 100}}, "confidence": 0.95}}
+- "buy phone id 3" → {{"action": "execute_purchase", "parameters": {{"product_id": 3}}, "confidence": 0.95}}
 """
 
             headers = {
@@ -135,7 +184,7 @@ class ToolCaller:
 
         # Call the tool
         tool_fn = self.available_tools[intent.action]
-        if intent.action == "search_products":
+        if intent.action in ("search_products", "execute_purchase"):
             result = await tool_fn(intent.parameters, auth_type, agent_id, db)
         else:
             result = await tool_fn(intent.parameters, auth_type, agent_id)
@@ -190,6 +239,11 @@ class ToolCaller:
                 {"id": 2, "name": "Phone", "price": 699.99, "stock": 15}
             ]
 
+        # Store results in agent context
+        if agent_id is not None:
+            ctx = get_agent_context(agent_id)
+            ctx["last_searched"] = results
+
         return {
             "action": "search_products",
             "results": results,
@@ -217,28 +271,60 @@ class ToolCaller:
         self,
         params: Dict[str, Any],
         auth_type: str,
-        agent_id: Optional[int]
+        agent_id: Optional[int],
+        db: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """Execute a purchase."""
+        """Execute a purchase. Resolves product_name to product_id via context ref or DB."""
+        from ..db.models import Product
+
         product_id = params.get("product_id")
+        product_name = params.get("product_name")
+
+        # First try context-aware resolution if product_id not provided
+        if product_id is None and product_name and agent_id is not None:
+            product_id = _resolve_product_ref(product_name, agent_id, db)
+
+        # Fall back to DB lookup if context resolution didn't find anything
+        if product_id is None and product_name and db:
+            rows = db.query(Product).filter(
+                Product.name.ilike(f"%{product_name.strip()}%")
+            ).limit(1).all()
+            if rows:
+                product_id = rows[0].id
+            else:
+                raise AppError(
+                    error_code=ErrorCode.INVALID_OPERATION,
+                    message=f"No product found matching '{product_name}'. Try search_products first.",
+                    status_code=400
+                )
+
         if product_id is None:
             raise AppError(
                 error_code=ErrorCode.MISSING_PARAMETER,
-                message="product_id is required to execute a purchase. Use search_products first to find products.",
+                message="product_id is required. Specify a product name or search first.",
                 status_code=400
             )
+
         quantity = params.get("quantity", 1)
 
-        # Verify product exists in DB
-        from ..db.models import Product
-        # Note: caller should pass db session for full validation
-        # Fall back to hardcoded price if no DB
+        # Get actual product price from DB
+        unit_price = 999.99
+        if db:
+            product = db.query(Product).filter(Product.id == product_id).first()
+            if product:
+                unit_price = product.price
+            else:
+                raise AppError(
+                    error_code=ErrorCode.RESOURCE_NOT_FOUND,
+                    message=f"Product {product_id} not found",
+                    status_code=404
+                )
 
         return {
             "action": "execute_purchase",
             "product_id": product_id,
             "quantity": quantity,
-            "total": 999.99 * quantity,
+            "total": unit_price * quantity,
             "status": "completed"
         }
 
