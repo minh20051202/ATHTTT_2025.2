@@ -184,6 +184,7 @@ class ToolCaller:
             "remove_from_cart": self._remove_from_cart,
             "update_cart_quantity": self._update_cart_quantity,
             "checkout": self._checkout,
+            "get_order_history": self._get_order_history,
         }
 
     async def call_tool(
@@ -205,7 +206,7 @@ class ToolCaller:
 
         # Call the tool
         tool_fn = self.available_tools[intent.action]
-        if intent.action in ("search_products", "compare_products", "execute_purchase", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity", "checkout"):
+        if intent.action in ("search_products", "compare_products", "execute_purchase", "add_to_cart", "view_cart", "remove_from_cart", "update_cart_quantity", "checkout", "get_order_history"):
             result = await tool_fn(intent.parameters, auth_type, agent_id, db)
         else:
             result = await tool_fn(intent.parameters, auth_type, agent_id)
@@ -684,6 +685,56 @@ class ToolCaller:
             "transaction_id": transaction.id,
             "status": "completed",
             "message": f"Order placed. Transaction #{transaction.id}"
+        }
+
+    async def _get_order_history(
+        self,
+        params: Dict[str, Any],
+        auth_type: str,
+        agent_id: Optional[int],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        from ..db.models import Transaction
+
+        if not db:
+            return {"action": "get_order_history", "orders": []}
+
+        limit = params.get("limit", 10)
+        offset = params.get("offset", 0)
+
+        query = db.query(Transaction).filter(Transaction.agent_id == agent_id)
+        total = query.count()
+        transactions = query.order_by(Transaction.created_at.desc()).offset(offset).limit(limit).all()
+
+        orders = []
+        for t in transactions:
+            product_ids = [int(pid) for pid in t.product_ids.split(",")] if t.product_ids else []
+
+            items = []
+            if product_ids and t.amount:
+                qty_per_item = t.amount // len(product_ids)
+                extra = t.amount % len(product_ids)
+                for i, pid in enumerate(product_ids):
+                    qty = qty_per_item + (1 if i < extra else 0)
+                    items.append({"product_id": pid, "quantity": qty})
+            elif product_ids:
+                for pid in product_ids:
+                    items.append({"product_id": pid, "quantity": 1})
+
+            orders.append({
+                "transaction_id": t.id,
+                "items": items,
+                "total": t.total_price,
+                "status": t.status,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            })
+
+        return {
+            "action": "get_order_history",
+            "orders": orders,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
         }
 
 

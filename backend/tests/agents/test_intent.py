@@ -336,3 +336,31 @@ async def test_checkout_success(db, sample_products):
     assert result["total"] > 0
     assert result["status"] == "completed"
     assert get_agent_context(agent_id)["cart"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_order_history(db):
+    from backend.agents.intent import tool_caller, Intent
+    from backend.db.models import Transaction
+
+    # Create a transaction for agent 1
+    t = Transaction(
+        agent_id=1,
+        product_id=1,
+        product_ids="1,2",
+        amount=5,
+        total_price=49.99,
+        auth_type_used="oauth2",
+        status="completed"
+    )
+    db.add(t)
+    db.commit()
+
+    intent = Intent(action="get_order_history", parameters={"limit": 5})
+    result = await tool_caller.call_tool(intent, "oauth2", agent_id=1, db=db)
+
+    assert result["action"] == "get_order_history"
+    assert result["total"] >= 1
+    assert result["limit"] == 5
+    assert len(result["orders"]) >= 1
+    assert result["orders"][0]["total"] == 49.99
