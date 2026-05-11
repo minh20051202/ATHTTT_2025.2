@@ -26,7 +26,7 @@ class TestAttackSimulations:
         zkp_token = challenge_resp.json()["zkp_token"]
 
         from backend.auth.zkp import zkp_auth
-        proof, _ = zkp_auth.sign_data(agent._test_password, agent.public_key, zkp_token)
+        proof, _ = zkp_auth.sign_data(agent._test_private_key, agent.public_key, zkp_token)
         return zkp_token, proof
 
     def test_replay_attack_on_oauth2_succeeds(self, client, oauth2_pkjwt_agent):

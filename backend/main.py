@@ -98,13 +98,11 @@ async def seed_demo(db=Depends(get_db)):
         auth_type="oauth2"
     )
 
-    # ZKP Agent — server stores ONLY the public key (Schnorr params).
-    # The password "demo" is the shared secret. Client computes public key from it.
-    zkp_password = "demo"
-    zkp_public_key, _ = zkp_auth.create_client_signature(zkp_password)
+    # ZKP Agent — public_key=NULL initially. Client generates its own random
+    # keypair during onboarding and registers public key via POST /api/auth/zkp/register.
     zkp_agent = db_ops.upsert_agent(
         db=db, user_id=user.id, name="ZKP Agent",
-        auth_type="zkp", public_key=zkp_public_key
+        auth_type="zkp", public_key=None
     )
 
     # Sample products
@@ -300,15 +298,18 @@ async def zkp_register_public_key(
             status_code=400
         )
 
-    # Validate public_key is valid JSON with y, p, g, q fields
+    # Parse and validate public_key fields
+    from .utils.errors import AppError, ErrorCode
     import json as _json
     try:
         pk = _json.loads(public_key)
-        required = {"y", "p", "g", "q"}
-        if not required.issubset(pk.keys()):
-            raise ValueError("missing required fields")
-        int(pk["y"], 16)
-        int(pk["p"], 16)
+        for field in ("y", "p", "g", "q"):
+            val = pk.get(field)
+            if val is None:
+                raise ValueError(f"missing {field}")
+            # Accept hex strings (production: "1cf3...") or already-parsed ints (tests)
+            if isinstance(val, str):
+                pk[field] = int(val, 16)
     except Exception:
         raise AppError(
             error_code=ErrorCode.INVALID_PARAMETER,

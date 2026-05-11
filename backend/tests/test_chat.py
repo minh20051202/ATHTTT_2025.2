@@ -58,15 +58,14 @@ class TestChatEndpoint:
     def test_chat_zkp_auth_info_format(self, client, zkp_agent, sample_products):
         """ZKP chat auth_info contains proof and timing breakdown."""
         # Step 1: Get challenge token
-        password = zkp_agent._test_password
+        hex_private_key = zkp_agent._test_private_key
         challenge_resp = client.get(f"/api/chat/zkp-challenge/{zkp_agent.id}")
         assert challenge_resp.status_code == 200
         zkp_token = challenge_resp.json()["zkp_token"]
 
-        # Step 2: Generate proof client-side using sign_data
+        # Step 2: Generate proof client-side using sign_data (hex private key)
         from backend.auth.zkp import zkp_auth
-        proof_json, _ = zkp_auth.sign_data(password, zkp_agent.public_key, zkp_token)
-        proof = proof_json
+        proof, _ = zkp_auth.sign_data(hex_private_key, zkp_agent.public_key, zkp_token)
 
         # Step 3: Call intent with token + proof
         response = client.post(
@@ -104,8 +103,7 @@ class TestChatEndpoint:
         zkp_token = challenge_resp.json()["zkp_token"]
 
         from backend.auth.zkp import zkp_auth
-        proof_json, _ = zkp_auth.sign_data(zkp_agent._test_password, zkp_agent.public_key, zkp_token)
-        proof = proof_json
+        proof, _ = zkp_auth.sign_data(zkp_agent._test_private_key, zkp_agent.public_key, zkp_token)
 
         zkp_response = client.post(
             "/api/chat/intent",
@@ -198,32 +196,37 @@ def test_chat_oauth2_verifies_with_server_secret(client):
 
 def test_zkp_challenge_store_cleanup(client, db, demo_user):
     """Expired challenge tokens must be removed from _challenge_store on every challenge fetch."""
-    import time
+    import time, secrets, json as _json
     from backend.api.chat import _challenge_store, _cleanup_expired_challenges
     from backend.db.models import Agent
 
-    # Inject an expired token directly
-    expired = "test_expired_token_xyz"
-    _challenge_store[expired] = {"agent_id": 1, "expires": time.time() - 60}
+    # Simulate client-side keypair generation: random private key, public key computed locally
+    P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
+    Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
+    G = 4
+    private_key_int = secrets.randbelow(Q)
+    public_key_int = pow(G, private_key_int, P)
+    public_key_json = _json.dumps({
+        "y": public_key_int, "p": P, "g": G, "q": Q,
+    })
 
-    # Trigger cleanup by calling get_challenge endpoint (needs a real agent id)
-    # Use the existing zkp_agent fixture pattern: create a ZKP agent first
-    from backend.auth.zkp import zkp_auth
-    password = "zkp_test_password"
-    public_key, _ = zkp_auth.create_client_signature(password)
     zkp_agent = Agent(
         user_id=demo_user.id,
         name="Test ZKP Agent",
         auth_type="zkp",
-        credentials_hash="hash_zkp",
-        public_key=public_key
+        credentials_hash=None,
+        public_key=public_key_json,
     )
     db.add(zkp_agent)
     db.commit()
     db.refresh(zkp_agent)
 
+    # Inject an expired token directly into the store
+    expired = "test_expired_token_xyz"
+    _challenge_store[expired] = {"agent_id": zkp_agent.id, "expires": time.time() - 60}
+
     resp = client.get(f"/api/chat/zkp-challenge/{zkp_agent.id}")
     assert resp.status_code == 200
 
-    # Expired token must be gone
+    # Expired token must be gone after get_challenge triggers cleanup
     assert expired not in _challenge_store, f"Expired token still in store: {list(_challenge_store.keys())}"

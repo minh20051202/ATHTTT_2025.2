@@ -52,28 +52,27 @@ def get_domain_params() -> dict:
 
 
 def hash_secret(secret: str) -> int:
-    """Derive the private exponent x = H(secret) mod q.
-
-    H is deterministic (no per-user salt) so the server can verify that a
-    given public key y was honestly computed from the password.
     """
-    return int(hashlib.sha512(secret.encode()).hexdigest(), 16) % _DHQ
+    DEPRECATED — server must never derive public key from a shared password.
+    For true ZKP: client generates random private key x, computes y = g^x locally.
+    Use client-side generateKeyPair() in zkp.js instead.
+    """
+    raise NotImplementedError(
+        "Server must not derive public key from password. "
+        "Client generates random private key and computes public key locally."
+    )
 
 
 def create_public_key(secret: str) -> str:
-    """Compute y = g^x mod p from a password — used at ZKP agent registration.
-
-    In the correct ZKP flow, this is called CLIENT-SIDE only.
-    The server stores only the returned JSON (never the secret).
     """
-    x = hash_secret(secret)
-    y = _modpow(_DHG, x, _DHP)
-    return json.dumps({
-        "y": y,
-        "p": _DHP,
-        "g": _DHG,
-        "q": _DHQ,
-    })
+    DEPRECATED — server must never call this.
+    For true ZKP: client generates random x, computes y = g^x, sends only y to server.
+    Left for reference: shows the broken shared-secret approach.
+    """
+    raise NotImplementedError(
+        "Server must not derive public key from password. "
+        "Client generates random private key and computes public key locally."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -131,8 +130,8 @@ def _verify_schnorr(proof_data: str, pk_json: str, token: str) -> Tuple[bool, fl
     try:
         proof = json.loads(proof_data)
         pk = json.loads(pk_json)
-        t = proof["commitment"]
-        s = proof["response"]
+        t = int(proof["commitment"], 16)  # JS computeProof sends commitment as hex string
+        s = int(proof["response"], 16)
         y = pk["y"]
         p, g = pk["p"], pk["g"]
         q = _DHQ
@@ -246,19 +245,29 @@ class _ZKPAuth:
         return token, time.time() - start
 
     def sign_data(self, password: str, public_key: str, token: str) -> Tuple[str, float]:
-        """Client-side: create a Schnorr proof for a challenge token.
+        """
+        Client-side: create a Schnorr proof for a challenge token.
 
-        This simulates what the frontend JS does. Used in tests.
+        This simulates what the frontend JS does. For true ZKP, the private key
+        is randomly generated (not password-derived) — this method accepts the raw
+        private key directly for test simulation purposes.
         Returns (proof_json, elapsed_time).
         """
         import time
         start = time.time()
-        x = hash_secret(password)
+        # For tests: accept raw private key as hex string (not password-derived)
+        # Client-side generateKeyPair() produces a hex privateKey string.
+        try:
+            x = int(password, 16)  # password is actually hex private key
+        except ValueError:
+            # Fallback: derive from password (BROKEN — only for legacy tests)
+            pk = json.loads(public_key)
+            x = int(hashlib.sha512(password.encode()).hexdigest(), 16) % _DHQ
         r = secrets.randbelow(_DHQ)
         t = pow(_DHG, r, _DHP)
         c = int(hashlib.sha512(f"{t:x}{token}".encode()).hexdigest(), 16) % _DHQ
         s = (r + c * x) % _DHQ
-        proof = json.dumps({"commitment": t, "response": s})
+        proof = json.dumps({"commitment": format(t, 'x'), "response": format(s, 'x')})
         return proof, time.time() - start
 
 

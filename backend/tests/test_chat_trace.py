@@ -38,7 +38,7 @@ def get_zkp_token_and_proof(client: TestClient, agent) -> tuple[str, str]:
     zkp_token = challenge_resp.json()["zkp_token"]
 
     # sign_data mirrors what frontend/src/lib/zkp.js does
-    proof, _ = zkp_auth.sign_data(agent._test_password, agent.public_key, zkp_token)
+    proof, _ = zkp_auth.sign_data(agent._test_private_key, agent.public_key, zkp_token)
     return zkp_token, proof
 
 
