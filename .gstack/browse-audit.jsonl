@@ -548,3 +548,9 @@
 {"ts":"2026-05-10T04:36:04.011Z","cmd":"click","args":"@e8","origin":"http://localhost:5173/chat","durationMs":28,"status":"ok","hasCookies":false,"mode":"launched"}
 {"ts":"2026-05-10T04:36:04.037Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
 {"ts":"2026-05-10T04:36:12.070Z","cmd":"snapshot","args":"","origin":"http://localhost:5173/chat","durationMs":6,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T07:31:58.984Z","cmd":"goto","args":"http://localhost:5173/chat","origin":"http://localhost:5173/chat","durationMs":204,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T07:32:00.394Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":1367,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T07:32:15.521Z","cmd":"snapshot","args":"-i -a -o /tmp/chat-oauth2.png","origin":"http://localhost:5173/chat","durationMs":134,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T07:32:21.531Z","cmd":"click","args":"@e5","origin":"http://localhost:5173/chat","durationMs":50,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T07:32:21.560Z","cmd":"wait","args":"--networkidle","origin":"http://localhost:5173/chat","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-05-10T07:32:39.190Z","cmd":"snapshot","args":"-a -o /tmp/chat-zkp-tab.png","origin":"http://localhost:5173/chat","durationMs":2840,"status":"ok","hasCookies":false,"mode":"launched"}
