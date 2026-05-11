@@ -130,10 +130,14 @@ def _verify_schnorr(proof_data: str, pk_json: str, token: str) -> Tuple[bool, fl
     try:
         proof = json.loads(proof_data)
         pk = json.loads(pk_json)
-        t = int(proof["commitment"], 16)  # JS computeProof sends commitment as hex string
-        s = int(proof["response"], 16)
-        y = pk["y"]
-        p, g = pk["p"], pk["g"]
+        # Accept both hex strings (browser registration) and already-parsed ints (tests)
+        def _to_int(val):
+            return int(val, 16) if isinstance(val, str) else int(val)
+        t = _to_int(proof["commitment"])
+        s = _to_int(proof["response"])
+        y = _to_int(pk["y"])
+        p = _to_int(pk["p"])
+        g = _to_int(pk["g"])
         q = _DHQ
 
         # Recompute challenge: must match what client computed

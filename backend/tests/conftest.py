@@ -138,24 +138,42 @@ def oauth2_agent(db, demo_user):
 
 @pytest.fixture(scope="function")
 def zkp_agent(db, demo_user):
-    """Create a ZKP agent with a stored public key (password is held by client only)."""
-    from backend.auth.zkp import zkp_auth
-    password = "zkp_test_password"
-    public_key, _ = zkp_auth.create_client_signature(password)
+    """Create a ZKP agent with a stored public key.
+
+    Client generates random private key x, computes y = g^x mod p locally.
+    Server stores only y. Private key is stored on agent._test_private_key for tests.
+    """
+    import secrets
+    import json
+
+    # Domain params (from backend/auth/zkp.py)
+    P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
+    Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
+    G = 4
+
+    # Generate random private key (client-side simulation)
+    private_key_int = secrets.randbelow(Q)
+    public_key_int = pow(G, private_key_int, P)
+
+    public_key_json = json.dumps({
+        "y": public_key_int,
+        "p": P,
+        "g": G,
+        "q": Q,
+    })
 
     agent = Agent(
         user_id=demo_user.id,
         name="Test ZKP Agent",
         auth_type="zkp",
         credentials_hash="hash_zkp",
-        public_key=public_key
+        public_key=public_key_json
     )
     db.add(agent)
     db.commit()
     db.refresh(agent)
-    # Attach the plain password so tests can retrieve it
-    # NOTE: this is the CLIENT's password — server only has public_key
-    agent._test_password = password
+    # Store hex private key so tests can use it to sign (sign_data expects hex)
+    agent._test_private_key = hex(private_key_int)
     return agent
 
 

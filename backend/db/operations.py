@@ -75,6 +75,31 @@ class DatabaseOperations:
         db.refresh(agent)
         return agent
 
+    def upsert_agent(
+        self,
+        db: Session,
+        user_id: int,
+        name: str,
+        auth_type: str,
+        public_key: Optional[str] = None,
+        credentials_hash: Optional[str] = None
+    ) -> Agent:
+        """Create or update an agent. Re-seeding updates existing agent's public_key."""
+        existing = db.query(Agent).filter(
+            Agent.user_id == user_id,
+            Agent.name == name,
+            Agent.auth_type == auth_type
+        ).first()
+        if existing:
+            if public_key is not None:
+                existing.public_key = public_key
+            db.add(existing)
+            db.commit()
+            db.refresh(existing)
+            return existing
+        return self.create_agent(db=db, user_id=user_id, name=name, auth_type=auth_type,
+                                 public_key=public_key, credentials_hash=credentials_hash)
+
     def create_product(
         self,
         db: Session,
