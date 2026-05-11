@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
@@ -10,7 +10,6 @@ from .db.models import init_db, get_db
 from .db.operations import db_ops
 from .auth.oauth2 import oauth2_auth
 from .auth.zkp import zkp_auth
-from .agents.intent import intent_extractor, tool_caller
 from .api.chat import router as chat_router
 from .attacks.simulations import router as attacks_router
 from .utils.errors import AppError
