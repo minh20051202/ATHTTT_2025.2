@@ -80,7 +80,7 @@ async function computeProof(password, token) {
   // Response:  s = r + c·x  (mod q)
   const s = (r + c * x) % Q;
 
-  return JSON.stringify({ commitment: t.toString(), response: s.toString() });
+  return JSON.stringify({ commitment: t.toString(16), response: s.toString() });
 }
 
 /**
@@ -107,6 +107,11 @@ async function createPublicKey(password) {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Generate a fresh Schnorr keypair.
+ * x = random private key (never sent to server)
+ * y = g^x mod p (only this is transmitted)
+ */
 function generatePrivateKey() {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -117,4 +122,19 @@ function generatePrivateKey() {
   return key % Q;
 }
 
-export { computeProof, createPublicKey, hashSecret };
+async function generateKeyPair() {
+  const x = generatePrivateKey();       // random private key — kept in browser memory only
+  const y = modPow(G, x, P);           // public key — sent to server during registration
+
+  return {
+    privateKey: x.toString(),         // hex — used for proof signing
+    publicKey: JSON.stringify({
+      y: y.toString(16),              // hex — sent to server
+      p: P.toString(16),
+      g: G.toString(16),
+      q: Q.toString(16),
+    }),
+  };
+}
+
+export { computeProof, createPublicKey, hashSecret, generateKeyPair };
