@@ -179,7 +179,7 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
 
     # Step 3: Execute tool call
     execution_start = time.time()
-    result = await tool_caller.call_tool(intent, agent.auth_type, request.agent_id)
+    result = await tool_caller.call_tool(intent, agent.auth_type, request.agent_id, db=db)
     timing["execution"] = time.time() - execution_start
 
     timing["total"] = sum(timing.values())

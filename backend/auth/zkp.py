@@ -105,7 +105,6 @@ def _verify_schnorr(proof_data: str, pk_json: str, token: str) -> Tuple[bool, fl
     try:
         proof = json.loads(proof_data)
         pk = json.loads(pk_json)
-        # Accept both hex strings (browser registration) and already-parsed ints (tests)
         def _to_int(val):
             return int(val, 16) if isinstance(val, str) else int(val)
         t = _to_int(proof["commitment"])
@@ -115,10 +114,7 @@ def _verify_schnorr(proof_data: str, pk_json: str, token: str) -> Tuple[bool, fl
         g = _to_int(pk["g"])
         q = _DHQ
 
-        # Recompute challenge: must match what client computed
         c = int(hashlib.sha512(f"{t:x}{token}".encode()).hexdigest(), 16) % q
-
-        # Verify: g^s ≡ t * y^c (mod p)
         left = _modpow(g, s, p)
         right = (_modpow(y, c, p) * (t % p)) % p
         elapsed = time.time() - start

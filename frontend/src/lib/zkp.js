@@ -80,7 +80,7 @@ async function computeProof(password, token) {
   // Response:  s = r + c·x  (mod q)
   const s = (r + c * x) % Q;
 
-  return JSON.stringify({ commitment: t.toString(16), response: s.toString() });
+  return JSON.stringify({ commitment: t.toString(16), response: s.toString(16) });
 }
 
 /**
@@ -96,7 +96,7 @@ async function createPublicKey(password) {
   const x = await hashSecret(password);
   const y = modPow(G, x, P);
   return JSON.stringify({
-    y: y.toString(16),              // hex — server expects hex for y
+    y: y.toString(16),
     p: P.toString(16),
     g: G.toString(16),
     q: Q.toString(16),
@@ -125,11 +125,13 @@ function generatePrivateKey() {
 async function generateKeyPair() {
   const x = generatePrivateKey();       // random private key — kept in browser memory only
   const y = modPow(G, x, P);           // public key — sent to server during registration
+  const xHex = x.toString(16);
+  const yHex = y.toString(16);
 
   return {
-    privateKey: x.toString(16),     // hex string — signWithPrivateKeyHex expects hex
+    privateKey: xHex,                   // hex — signWithPrivateKeyHex expects hex
     publicKey: JSON.stringify({
-      y: y.toString(16),             // hex — server parses with int(v, 16)
+      y: yHex,                          // hex — server parses with int(v, 16)
       p: P.toString(16),
       g: G.toString(16),
       q: Q.toString(16),
@@ -142,19 +144,19 @@ async function generateKeyPair() {
  * No password hashing — x is used directly.
  */
 async function signWithPrivateKeyHex(privateKeyHex, token) {
-  const x = BigInt(`0x${privateKeyHex}`)
+  const x = BigInt(`0x${privateKeyHex}`);
 
   // Commitment: r ← random,  t = g^r mod p
-  const r = generatePrivateKey()
-  const t = modPow(G, r, P)
+  const r = generatePrivateKey();
+  const t = modPow(G, r, P);
 
   // Challenge: c = SHA-512(t || token) mod q
-  const c = (await hashToBigInt(`${t.toString(16)}${token}`)) % Q
+  const c = (await hashToBigInt(`${t.toString(16)}${token}`)) % Q;
 
   // Response:  s = r + c·x  (mod q)
-  const s = (r + c * x) % Q
+  const s = (r + c * x) % Q;
 
-  return JSON.stringify({ commitment: t.toString(16), response: s.toString() })
+  return JSON.stringify({ commitment: t.toString(16), response: s.toString(16) });
 }
 
 export { computeProof, createPublicKey, hashSecret, generateKeyPair, signWithPrivateKeyHex };

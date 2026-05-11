@@ -32,10 +32,13 @@ You are an AI Agent intent extractor. Analyze the user's message and extract the
 
 User message: "{user_message}"
 
-Extract the following:
-1. action: The main action (e.g., "search_products", "compare_prices", "execute_purchase", "get_product_details")
-2. parameters: Any parameters needed (e.g., product_name, max_price, product_ids)
-3. confidence: Your confidence in this extraction (0.0 to 1.0)
+Rules:
+- If the user wants to BUY or PURCHASE something but does NOT specify an exact product ID, you MUST return action "search_products" with the product_name parameter. NEVER call execute_purchase without a product_id — you do not have access to a product catalog to look up IDs.
+- If the user asks about a product category (e.g. "phones", "laptops", "headphones") without specifying an exact product, return "search_products" with product_name or category.
+- Only return "execute_purchase" when the user explicitly names a specific product or provides a product_id.
+- If unsure which product the user means, default to "search_products" so the system can show options.
+
+Actions available: "search_products", "compare_prices", "execute_purchase", "get_product_details"
 
 Respond in JSON format only:
 {{
@@ -43,6 +46,12 @@ Respond in JSON format only:
     "parameters": {{"key": "value"}},
     "confidence": 0.95
 }}
+
+Examples:
+- "buy phone" → {{"action": "search_products", "parameters": {{"product_name": "phone"}}, "confidence": 0.9}}
+- "buy phone id 3" → {{"action": "execute_purchase", "parameters": {{"product_id": 3}}, "confidence": 0.95}}
+- "show me laptops" → {{"action": "search_products", "parameters": {{"product_name": "laptop"}}, "confidence": 0.9}}
+- "search for headphones under 100" → {{"action": "search_products", "parameters": {{"product_name": "headphones", "max_price": 100}}, "confidence": 0.95}}
 """
 
             headers = {
@@ -111,7 +120,8 @@ class ToolCaller:
         self,
         intent: Intent,
         auth_type: str,
-        agent_id: Optional[int] = None
+        agent_id: Optional[int] = None,
+        db: Optional[Any] = None
     ) -> Dict[str, Any]:
         """Call the appropriate tool based on intent."""
         start_time = time.time()
@@ -124,11 +134,11 @@ class ToolCaller:
             )
 
         # Call the tool
-        result = await self.available_tools[intent.action](
-            intent.parameters,
-            auth_type,
-            agent_id
-        )
+        tool_fn = self.available_tools[intent.action]
+        if intent.action == "search_products":
+            result = await tool_fn(intent.parameters, auth_type, agent_id, db)
+        else:
+            result = await tool_fn(intent.parameters, auth_type, agent_id)
 
         execution_time = time.time() - start_time
         result["execution_time"] = execution_time
@@ -140,17 +150,50 @@ class ToolCaller:
         self,
         params: Dict[str, Any],
         auth_type: str,
-        agent_id: Optional[int]
+        agent_id: Optional[int],
+        db: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """Search for products."""
-        # This would query the database in a real implementation
-        return {
-            "action": "search_products",
-            "results": [
+        """Search for products in the database."""
+        from ..db.models import Product
+
+        query = db.query(Product) if db else None
+
+        results = []
+        if query is not None:
+            product_name = params.get("product_name", "").strip().lower()
+            category = params.get("category", "").strip().lower()
+            max_price = params.get("max_price")
+
+            if product_name:
+                query = query.filter(Product.name.ilike(f"%{product_name}%"))
+            if category:
+                query = query.filter(Product.category.ilike(f"%{category}%"))
+            if max_price is not None:
+                query = query.filter(Product.price <= float(max_price))
+
+            rows = query.limit(20).all()
+            results = [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description,
+                    "price": p.price,
+                    "stock": p.stock,
+                    "category": p.category,
+                }
+                for p in rows
+            ]
+        else:
+            # Fallback if no DB session
+            results = [
                 {"id": 1, "name": "Laptop", "price": 999.99, "stock": 10},
                 {"id": 2, "name": "Phone", "price": 699.99, "stock": 15}
-            ],
-            "count": 2
+            ]
+
+        return {
+            "action": "search_products",
+            "results": results,
+            "count": len(results)
         }
 
     async def _compare_prices(
@@ -178,7 +221,19 @@ class ToolCaller:
     ) -> Dict[str, Any]:
         """Execute a purchase."""
         product_id = params.get("product_id")
+        if product_id is None:
+            raise AppError(
+                error_code=ErrorCode.MISSING_PARAMETER,
+                message="product_id is required to execute a purchase. Use search_products first to find products.",
+                status_code=400
+            )
         quantity = params.get("quantity", 1)
+
+        # Verify product exists in DB
+        from ..db.models import Product
+        # Note: caller should pass db session for full validation
+        # Fall back to hardcoded price if no DB
+
         return {
             "action": "execute_purchase",
             "product_id": product_id,

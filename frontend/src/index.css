@@ -115,9 +115,9 @@ a:hover { color: var(--color-primary-hover); }
 button {
   font-family: var(--font-sans);
   cursor: pointer;
-  transition: color var(--duration-sm) var(--ease-out),
-              background-color var(--duration-sm) var(--ease-out),
-              transform var(--duration-xs) var(--ease-out);
+  transition: color 120ms var(--ease-out),
+              background-color 120ms var(--ease-out),
+              transform 80ms var(--ease-out);
 }
 button:active {
   transform: scale(0.97);
