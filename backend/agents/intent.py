@@ -184,7 +184,7 @@ class ToolCaller:
 
         # Call the tool
         tool_fn = self.available_tools[intent.action]
-        if intent.action in ("search_products", "execute_purchase"):
+        if intent.action in ("search_products", "get_product_details", "execute_purchase"):
             result = await tool_fn(intent.parameters, auth_type, agent_id, db)
         else:
             result = await tool_fn(intent.parameters, auth_type, agent_id)
@@ -332,19 +332,49 @@ class ToolCaller:
         self,
         params: Dict[str, Any],
         auth_type: str,
-        agent_id: Optional[int]
+        agent_id: Optional[int],
+        db: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """Get product details."""
+        """Get product details from DB, populating last_viewed in agent context."""
+        from ..db.models import Product
+
         product_id = params.get("product_id")
+        product_name = params.get("product_name")
+
+        product = None
+
+        if db is not None:
+            if product_id is not None:
+                product = db.query(Product).filter(Product.id == product_id).first()
+            elif product_name:
+                product = db.query(Product).filter(
+                    Product.name.ilike(f"%{product_name.strip()}%")
+                ).limit(1).first()
+
+        if product is None:
+            raise AppError(
+                error_code=ErrorCode.RESOURCE_NOT_FOUND,
+                message="Product not found",
+                status_code=404
+            )
+
+        product_dict = {
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category": product.category,
+        }
+
+        # Populate last_viewed in agent context
+        if agent_id is not None:
+            ctx = get_agent_context(agent_id)
+            ctx["last_viewed"] = product_dict
+
         return {
             "action": "get_product_details",
-            "product": {
-                "id": product_id,
-                "name": "Laptop",
-                "price": 999.99,
-                "stock": 10,
-                "description": "High-performance laptop"
-            }
+            "product": product_dict
         }
 
 
