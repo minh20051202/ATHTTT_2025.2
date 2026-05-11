@@ -592,6 +592,7 @@ class ToolCaller:
         agent_id: Optional[int],
         db: Optional[Any] = None
     ) -> Dict[str, Any]:
+        # Note: params unused — checkout always consumes cart from context
         from ..db.models import Product, Transaction
 
         ctx = get_agent_context(agent_id)
@@ -645,9 +646,11 @@ class ToolCaller:
             quantities.append(item["quantity"])
             total += subtotal
 
+        all_product_ids = ",".join(str(pid) for pid in product_ids)
         transaction = Transaction(
             agent_id=agent_id,
             product_id=product_ids[0] if product_ids else None,
+            product_ids=all_product_ids,
             amount=sum(quantities),
             total_price=round(total, 2),
             auth_type_used=auth_type,

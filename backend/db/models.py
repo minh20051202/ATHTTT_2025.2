@@ -61,7 +61,8 @@ class Transaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     agent_id = Column(Integer, ForeignKey("agents.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)  # Primary product
+    product_ids = Column(Text, nullable=True)  # All product IDs (comma-separated), for multi-item orders
     amount = Column(Integer, nullable=False)
     total_price = Column(Float, nullable=False)
     auth_type_used = Column(String, nullable=False)  # "oauth2" or "zkp"
