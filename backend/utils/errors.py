@@ -78,11 +78,3 @@ class ErrorCode:
     ATTACK_ISOLATION_ERROR = "ATTACK_ISOLATION_ERROR"
 
 
-def create_error_response(
-    error_code: str,
-    message: str,
-    details: Optional[dict] = None,
-    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
-) -> dict:
-    """Create a structured error response."""
-    return ErrorResponse(error_code, message, details, status_code).to_dict()

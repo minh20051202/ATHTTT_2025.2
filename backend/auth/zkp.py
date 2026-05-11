@@ -33,9 +33,6 @@ import json
 _DHP = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
 _DHQ = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cff
 _DHG = 0x4
-_EXTERNAL_DHP = _DHP
-_EXTERNAL_DHQ = _DHQ
-_EXTERNAL_DHG = _DHG
 
 
 def _modpow(base: int, exp: int, mod: int) -> int:
@@ -51,28 +48,6 @@ def get_domain_params() -> dict:
     return {"p": _DHP, "g": _DHG, "q": _DHQ}
 
 
-def hash_secret(secret: str) -> int:
-    """
-    DEPRECATED — server must never derive public key from a shared password.
-    For true ZKP: client generates random private key x, computes y = g^x locally.
-    Use client-side generateKeyPair() in zkp.js instead.
-    """
-    raise NotImplementedError(
-        "Server must not derive public key from password. "
-        "Client generates random private key and computes public key locally."
-    )
-
-
-def create_public_key(secret: str) -> str:
-    """
-    DEPRECATED — server must never call this.
-    For true ZKP: client generates random x, computes y = g^x, sends only y to server.
-    Left for reference: shows the broken shared-secret approach.
-    """
-    raise NotImplementedError(
-        "Server must not derive public key from password. "
-        "Client generates random private key and computes public key locally."
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -206,16 +181,6 @@ def verify_proof(
 
 class _ZKPAuth:
     """Wraps standalone Schnorr functions into a backwards-compatible API."""
-
-    def create_client_signature(self, password: str) -> Tuple[str, float]:
-        """Create a public key JSON from a password (client-side operation).
-
-        Returns (public_key_json, elapsed_time).
-        """
-        import time
-        start = time.time()
-        pk = create_public_key(password)
-        return pk, time.time() - start
 
     def verify_proof(self, proof_data: str, public_key_data: str, token: str) -> Tuple[bool, float]:
         """Verify a proof — delegates to the standalone verify_proof()."""
