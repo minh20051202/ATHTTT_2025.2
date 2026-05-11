@@ -88,20 +88,9 @@ function jsonPreview(obj) {
 }
 
 /* ─── Chat Input ─── */
-function ChatInput({ message, setMessage, password, setPassword, onSend, sending, authType, disabled }) {
+function ChatInput({ message, setMessage, onSend, sending, authType, disabled }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {authType === 'zkp' && (
-        <input
-          type="password" value={password} onChange={e => setPassword(e.target.value)}
-          placeholder="Password" style={{
-            padding: '14px 16px', border: '1px solid var(--color-border)',
-            borderRadius: '8px', fontSize: '16px', fontFamily: 'var(--font-mono)',
-            background: 'var(--color-surface)', color: 'var(--color-text)',
-            outline: 'none',
-          }}
-        />
-      )}
       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
         <textarea
           value={message} onChange={e => setMessage(e.target.value)}
@@ -174,7 +163,6 @@ export default function ChatThread({ authType, messages, sending, onSend, messag
       }}>
         <ChatInput
           message={message} setMessage={setMessage}
-          password={password} setPassword={setPassword}
           onSend={onSend} sending={sending} authType={authType}
           disabled={disabled}
         />

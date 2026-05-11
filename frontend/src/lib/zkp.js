@@ -137,4 +137,24 @@ async function generateKeyPair() {
   };
 }
 
-export { computeProof, createPublicKey, hashSecret, generateKeyPair };
+/**
+ * Create a Schnorr proof using a raw hex private key (from generateKeyPair).
+ * No password hashing — x is used directly.
+ */
+async function signWithPrivateKeyHex(privateKeyHex, token) {
+  const x = BigInt(`0x${privateKeyHex}`)
+
+  // Commitment: r ← random,  t = g^r mod p
+  const r = generatePrivateKey()
+  const t = modPow(G, r, P)
+
+  // Challenge: c = SHA-512(t || token) mod q
+  const c = (await hashToBigInt(`${t.toString(16)}${token}`)) % Q
+
+  // Response:  s = r + c·x  (mod q)
+  const s = (r + c * x) % Q
+
+  return JSON.stringify({ commitment: t.toString(16), response: s.toString() })
+}
+
+export { computeProof, createPublicKey, hashSecret, generateKeyPair, signWithPrivateKeyHex };

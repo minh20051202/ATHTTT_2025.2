@@ -14,4 +14,15 @@ export const demoApi = {
       body: formData.toString(),
     }).then(r => r.json())
   },
+  /** Register a ZKP agent's public key. Server stores only the public key. */
+  registerZKPPublicKey: (agentId, publicKeyJson) => {
+    const formData = new URLSearchParams()
+    formData.append('agent_id', String(agentId))
+    formData.append('public_key', publicKeyJson)
+    return fetch('/api/auth/zkp/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
+    }).then(r => r.json())
+  },
 }

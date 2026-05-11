@@ -4,7 +4,7 @@ import { useChatHistory } from '../context/ChatHistoryContext.jsx'
 import { chatApi, setAgentConfig } from '../services/chatApi.js'
 import { getAccessToken } from '../services/authApi.js'
 import { demoApi } from '../services/demoApi.js'
-import { computeProof } from '../lib/zkp.js'
+import { generateKeyPair, signWithPrivateKeyHex } from '../lib/zkp.js'
 import { generateRSAKeyPair } from '../lib/oauth2.js'
 import ChatThread from '../components/ChatThread.jsx'
 import ComputationSidebar from '../components/ComputationSidebar.jsx'
@@ -355,11 +355,11 @@ export default function Chat() {
   const [authType, setAuthType] = useState('oauth2')
   const [attackMode, setAttackMode] = useState(false)
   const [message, setMessage] = useState('')
-  const [password, setPassword] = useState('')
   const [sending, setSending] = useState(false)
   const [chatError, setChatError] = useState(null)
   const [messages, setMessages] = useState([])
   const [oauth2Credentials, setOauth2Credentials] = useState(null)
+  const [zkpCredentials, setZkpCredentials] = useState(null)
   const [setupReady, setSetupReady] = useState(false)
 
   const pendingAgentIdRef = useRef(null)
@@ -406,18 +406,62 @@ export default function Chat() {
     seedAndSetup()
   }, [])
 
-  // Update agent config on authType/credentials change
+  // ZKP setup: restore stored private key, or generate + register new keypair
+  useEffect(() => {
+    if (authType !== 'zkp') return
+
+    async function setupZKP() {
+      // Restore stored ZKP credentials
+      const stored = sessionStorage.getItem('demo_zkp_creds')
+      if (stored) {
+        try {
+          const { id, privateKey } = JSON.parse(stored)
+          setZkpCredentials({ id, privateKey })
+          return
+        } catch {
+          sessionStorage.removeItem('demo_zkp_creds')
+        }
+      }
+
+      try {
+        const seedRes = await demoApi.seed()
+        const zkpAgent = seedRes?.data?.zkp_agent
+        const zkpAgentId = zkpAgent?.id
+        if (!zkpAgentId) return
+
+        // Client-side keypair: private key stays in browser memory only
+        const { privateKey, publicKey } = await generateKeyPair()
+        await demoApi.registerZKPPublicKey(zkpAgentId, publicKey)
+
+        sessionStorage.setItem('demo_zkp_creds', JSON.stringify({
+          id: zkpAgentId, privateKey,
+        }))
+        setZkpCredentials({ id: zkpAgentId, privateKey })
+      } catch (err) {
+        console.warn('ZKP setup failed (may already be seeded):', err.message)
+      }
+    }
+
+    setupZKP()
+  }, [authType])
+
+  // Update agent config when auth type or credentials change
   useEffect(() => {
     if (authType === 'oauth2' && oauth2Credentials) {
       setAgentConfig({ agentId: oauth2Credentials.id, privateKeyPem: oauth2Credentials.privateKey, authType: 'oauth2' })
+    } else if (authType === 'zkp' && zkpCredentials) {
+      setAgentConfig({ authType: 'zkp', privateKey: zkpCredentials.privateKey, agentId: zkpCredentials.id })
     } else if (authType === 'zkp') {
       setAgentConfig({ authType: 'zkp' })
+    } else {
+      setAgentConfig({ authType: 'oauth2' })
     }
-  }, [authType, oauth2Credentials])
+  }, [authType, oauth2Credentials, zkpCredentials])
 
   const handleSend = async () => {
     if (!message.trim() || !agents || !setupReady) return
     if (authType === 'oauth2' && !oauth2Credentials) return
+    if (authType === 'zkp' && !zkpCredentials) return
 
     const userMsg = { id: nextId(), role: 'user', content: message, timestamp: Date.now() }
     const amId = nextId()
@@ -430,22 +474,16 @@ export default function Chat() {
     setChatError(null)
 
     try {
-      const agentId = authType === 'oauth2' ? oauth2Credentials.id : agents.zkpAgentId
+      const agentId = authType === 'oauth2' ? oauth2Credentials.id : zkpCredentials.id
       let res
 
       if (authType === 'oauth2') {
         res = await chatApi.intent({ message, agent_id: agentId })
       } else {
-        if (!password.trim()) throw new Error('Password is required for ZKP authentication')
         const challengeRes = await chatApi.getZkpChallenge(agentId)
         const { zkp_token } = challengeRes.data
-        const proofJson = await computeProof(password, zkp_token)
-        let proofData
-        try { proofData = JSON.parse(proofJson) } catch {
-          throw new Error('Failed to compute ZKP proof')
-        }
-        const proofString = JSON.stringify({ commitment: proofData.commitment, response: proofData.response })
-        res = await chatApi.intent({ message, agent_id: agentId, zkp_token, zkp_proof: proofString })
+        const proofJson = await signWithPrivateKeyHex(zkpCredentials.privateKey, zkp_token)
+        res = await chatApi.intent({ message, agent_id: agentId, zkp_token, zkp_proof: proofJson })
       }
 
       const { intent, result: execResult, timing, auth_info } = res.data
@@ -538,9 +576,7 @@ export default function Chat() {
           onSend={handleSend}
           message={message}
           setMessage={setMessage}
-          password={password}
-          setPassword={setPassword}
-          disabled={!setupReady}
+          disabled={!setupReady || (authType === 'zkp' && !zkpCredentials)}
         />
       </div>
 
