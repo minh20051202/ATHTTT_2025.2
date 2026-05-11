@@ -98,13 +98,11 @@ async def seed_demo(db=Depends(get_db)):
         auth_type="oauth2"
     )
 
-    # ZKP Agent — server stores ONLY the public key (ZKSignature params).
-    # The password is never on the server. Demo password is 'zkp_password_456'
-    # and is held OUT-OF-BAND by the instructor.
-    zkp_password = "zkp_password_456"
-    # Client derives the same public key from the shared password
+    # ZKP Agent — server stores ONLY the public key (Schnorr params).
+    # The password "demo" is the shared secret. Client computes public key from it.
+    zkp_password = "demo"
     zkp_public_key, _ = zkp_auth.create_client_signature(zkp_password)
-    zkp_agent = db_ops.create_agent(
+    zkp_agent = db_ops.upsert_agent(
         db=db, user_id=user.id, name="ZKP Agent",
         auth_type="zkp", public_key=zkp_public_key
     )
@@ -274,43 +272,58 @@ async def oauth2_register_agent(
 
 
 @app.post("/api/auth/zkp/register")
-async def zkp_register_agent(
-    agent_name: str,
-    user_id: int,
-    password: str,
+async def zkp_register_public_key(
+    agent_id: int = Form(...),
+    public_key: str = Form(...),
     db=Depends(get_db)
 ):
-    """Register a new ZKP-capable AI Agent. Server stores only the public key."""
-    try:
-        # Create ZKP agent — password never touches the server, only the public key is stored
-        # after generation. credentials_hash stays NULL for ZKP (server never has secret).
-        agent = db_ops.create_agent(
-            db=db,
-            user_id=user_id,
-            name=agent_name,
-            auth_type="zkp",
-        )
+    """
+    Client sends its Schnorr public key. Server stores only the public key.
+    Private key never touches the server.
 
-        # Generate ZKP public key from password and store it on the agent
-        public_key, _ = zkp_auth.create_client_signature(password)
+    public_key format: JSON string {"y": hex, "p": hex, "g": hex, "q": hex}
+    """
+    from .db.models import Agent
+    from .utils.errors import AppError, ErrorCode
 
-        # Store the public key on the agent
-        agent.public_key = public_key
-        db.commit()
-        db.refresh(agent)
-
-        return {
-            "agent_id": agent.id,
-            "name": agent.name,
-            "auth_type": "zkp",
-            "message": "ZKP agent registered successfully. Password is NOT stored — only the public key."
-        }
-    except Exception as e:
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
         raise AppError(
-            error_code="DATABASE_ERROR",
-            message=f"Failed to register ZKP agent: {str(e)}",
-            status_code=500
+            error_code=ErrorCode.RESOURCE_NOT_FOUND,
+            message="Agent not found",
+            status_code=404
         )
+    if agent.auth_type != "zkp":
+        raise AppError(
+            error_code=ErrorCode.INVALID_PARAMETER,
+            message="Only ZKP agents can use this endpoint",
+            status_code=400
+        )
+
+    # Validate public_key is valid JSON with y, p, g, q fields
+    import json as _json
+    try:
+        pk = _json.loads(public_key)
+        required = {"y", "p", "g", "q"}
+        if not required.issubset(pk.keys()):
+            raise ValueError("missing required fields")
+        int(pk["y"], 16)
+        int(pk["p"], 16)
+    except Exception:
+        raise AppError(
+            error_code=ErrorCode.INVALID_PARAMETER,
+            message="public_key must be JSON with fields: y, p, g, q (all hex integers)",
+            status_code=400
+        )
+
+    agent.public_key = public_key
+    db.add(agent)
+    db.commit()
+
+    return {
+        "agent_id": agent.id,
+        "message": "ZKP public key registered. Server NEVER stores the private key."
+    }
 
 
 
