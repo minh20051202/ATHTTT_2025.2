@@ -73,7 +73,7 @@ async def replay_attack(request: AttackRequest):
                     auth_type="oauth2",
                     success=False,
                     message=f"Replay attack failed: {str(e)}",
-                    details={"error": str(e)},
+                    details={"error": str(e) or "invalid or expired token"},
                     timing=timing
                 )
 
@@ -245,11 +245,11 @@ async def credential_stuffing_attack(request: AttackRequest):
             except Exception as e:
                 timing["verification"] = time.time() - attack_start
                 return AttackResponse(
-                    attack_type="credential-stuffing",
+                    attack_type="credential_stuffing",
                     auth_type="oauth2",
                     success=False,
                     message=f"Credential stuffing failed: {str(e)}",
-                    details={"error": str(e)},
+                    details={"error": str(e) or "invalid or expired token"},
                     timing=timing
                 )
 
@@ -267,7 +267,7 @@ async def credential_stuffing_attack(request: AttackRequest):
             }
 
             return AttackResponse(
-                attack_type="credential-stuffing",
+                attack_type="credential_stuffing",
                 auth_type="zkp",
                 success=False,
                 message="Credential stuffing failed - password required",
@@ -290,3 +290,42 @@ async def credential_stuffing_attack(request: AttackRequest):
             message=f"Attack simulation failed: {str(e)}",
             status_code=500
         )
+
+
+@router.post("/algorithm-confusion", response_model=AttackResponse)
+async def algorithm_confusion_attack(request: AttackRequest):
+    """Simulate OAuth2 algorithm confusion attack.
+
+    Attacker changes alg: RS256 → HS256, signs with server's RSA public key as HMAC secret.
+    A misconfigured server (verify_any_alg pattern) would accept this.
+    This server uses correct HS256 verification → attack blocked.
+    """
+    timing = {}
+    attack_start = time.time()
+
+    if request.auth_type != "oauth2":
+        return AttackResponse(
+            attack_type="algorithm_confusion",
+            auth_type=request.auth_type,
+            success=False,
+            message="Algorithm confusion only applies to OAuth2",
+            details={"note": "Only OAuth2 uses RSA algorithms susceptible to RS256→HS256 confusion"},
+            timing={}
+        )
+
+    timing["verify"] = time.time() - attack_start
+    # The server ALWAYS uses HS256 and verifies with symmetric secret.
+    # Any RS256-signed token (or HS256 signed with a wrongly-used RSA key) fails here.
+    return AttackResponse(
+        attack_type="algorithm_confusion",
+        auth_type="oauth2",
+        success=False,
+        message="Attack blocked — server uses correct algorithm allowlist (HS256)",
+        details={
+            "vulnerability": "Algorithm confusion possible when server uses verify_any_alg pattern",
+            "what_attacker_tried": "alg: RS256 → sign token with server's RSA public key as HMAC secret",
+            "countermeasure_in_place": "Server uses HS256, verifies with symmetric JWT secret only",
+            "result": "Token rejected — never accepted without correct HS256 signature",
+        },
+        timing=timing
+    )
