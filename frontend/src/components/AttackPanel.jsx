@@ -1,135 +1,96 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useChatHistory } from "../context/ChatHistoryContext.jsx";
+import { attackApi } from "../services/attackApi.js";
 
 const ATTACK_TYPES = [
-  {
-    key: "replay",
-    label: "Replay Attack",
-    desc: "Reuse a captured token or proof",
-    icon: "↻",
-  },
-  {
-    key: "token_theft",
-    label: "Token Theft",
-    desc: "Extract credentials from a valid token",
-    icon: "☉",
-  },
-  {
-    key: "credential_stuffing",
-    label: "Credential Stuffing",
-    desc: "Use stolen tokens to authenticate",
-    icon: "📋",
-  },
-];
+  { key: "replay",       label: "Token Replay",         auth: "oauth2", desc: "Reuse a captured bearer token" },
+  { key: "alg-confuse",  label: "Algorithm Confusion",  auth: "oauth2", desc: "Flip RS256→HS256, forge with server's public key" },
+  { key: "nonce-reuse",  label: "Nonce Reuse",          auth: "zkp",    desc: "Two proofs same r → extract private key" },
+  { key: "proof-replay", label: "Challenge Replay",     auth: "zkp",    desc: "Replay a proof with the same challenge token" },
+]
 
 function AttackPanel() {
-  const { latestResult } = useChatHistory();
-  const [attackType, setAttackType] = useState("replay");
-  const [oauth2Phase, setOauth2Phase] = useState("idle");
-  const [zkpPhase, setZkpPhase] = useState("idle");
-  const [showForensics, setShowForensics] = useState(false);
-  const [blinkState, setBlinkState] = useState(false);
-  const [replayDebounce, setReplayDebounce] = useState(false);
+  const { latestResult } = useChatHistory()
 
-  const timeoutRefs = useRef({});
-  const replayTimeoutRef = useRef(null);
+  const [attackType, setAttackType]     = useState("replay")
+  const [attackPhase, setAttackPhase]   = useState("idle")
+  const [attackSteps, setAttackSteps]   = useState([])
+  const [attackResult, setAttackResult] = useState(null)
 
-  const clearAllTimeouts = useCallback(() => {
-    Object.values(timeoutRefs.current).forEach((t) => {
-      if (typeof t === "number" && t > 0) clearTimeout(t);
-    });
-    timeoutRefs.current = {};
-  }, []);
+  const authInfo = latestResult?.auth_info
+  const authType = authInfo?.type || "oauth2"
+  const token = authInfo?.type === "oauth2"
+    ? authInfo.token
+    : authInfo?.type === "zkp"
+      ? authInfo.proof
+      : null
+  const hasToken = !!token
 
   const resetPanels = useCallback(() => {
-    clearAllTimeouts();
-    setOauth2Phase("idle");
-    setZkpPhase("idle");
-    setShowForensics(false);
-    setBlinkState(false);
-    setReplayDebounce(false);
-    if (replayTimeoutRef.current) {
-      clearTimeout(replayTimeoutRef.current);
-      replayTimeoutRef.current = null;
-    }
-  }, [clearAllTimeouts]);
+    setAttackPhase("idle")
+    setAttackSteps([])
+    setAttackResult(null)
+  }, [])
 
-  // OAuth2 breach animation state machine
-  useEffect(() => {
-    if (oauth2Phase === "idle") return;
-    let t;
-    if (oauth2Phase === "dim") {
-      t = setTimeout(() => setOauth2Phase("flash"), 200);
-    } else if (oauth2Phase === "flash") {
-      t = setTimeout(() => setOauth2Phase("blink"), 400);
-    } else if (oauth2Phase === "blink") {
-      let blinks = 0;
-      const blinkInterval = setInterval(() => {
-        blinks++;
-        setBlinkState((prev) => !prev);
-        if (blinks >= 3) {
-          clearInterval(blinkInterval);
-          setOauth2Phase("exfil");
-          setBlinkState(false);
-        }
-      }, 80);
-      t = timeoutRefs.current.blinkInterval = setTimeout(
-        () => clearInterval(blinkInterval),
-        600,
-      );
-      return () => clearInterval(blinkInterval);
-    } else if (oauth2Phase === "exfil") {
-      t = setTimeout(() => setOauth2Phase("done"), 600);
-    }
-    if (t) timeoutRefs.current[oauth2Phase] = t;
-    return () => clearTimeout(t);
-  }, [oauth2Phase]);
+  const executeAttack = useCallback(async () => {
+    if (!hasToken) return
 
-  // ZKP animation runs alongside OAuth2
-  useEffect(() => {
-    if (oauth2Phase === "idle") return;
-    if (oauth2Phase === "dim" && zkpPhase === "idle") {
-      timeoutRefs.current.zkp_start = setTimeout(() => {
-        setZkpPhase("pulse");
-      }, 0);
-    }
-    return () => {};
-  }, [oauth2Phase]);
+    setAttackPhase("scanning")
+    setAttackResult(null)
+    setAttackSteps([])
+    setAttackSteps([{
+      label: "Scanning network traffic",
+      detail: "Intercepting token...",
+      success: true,
+    }])
 
-  useEffect(() => {
-    if (zkpPhase === "pulse") {
-      const t = setTimeout(() => setZkpPhase("check"), 400);
-      timeoutRefs.current.zkp_check = t;
-    } else if (zkpPhase === "check") {
-      const t = setTimeout(() => setZkpPhase("label"), 200);
-      timeoutRefs.current.zkp_label = t;
-    } else if (zkpPhase === "label") {
-      const t = setTimeout(() => setZkpPhase("done"), 300);
-      timeoutRefs.current.zkp_done = t;
-    } else if (zkpPhase === "done" && oauth2Phase === "done") {
-      const t = setTimeout(() => setShowForensics(true), 200);
-      timeoutRefs.current.show_forensics = t;
+    await new Promise(r => setTimeout(r, 500))
+    setAttackPhase("exploiting")
+    setAttackSteps(prev => [...prev, {
+      label: "Launching exploit",
+      detail: `${ATTACK_TYPES.find(a => a.key === attackType)?.label} on ${authType}`,
+      success: true,
+    }])
+
+    await new Promise(r => setTimeout(r, 500))
+
+    try {
+      const apiFn = {
+        "replay":       attackApi.replay,
+        "alg-confuse":  attackApi.algorithmConfusion,
+        "nonce-reuse":  attackApi.nonceReuse,
+        "proof-replay": attackApi.replay,
+      }[attackType]
+
+      const type = ATTACK_TYPES.find(a => a.key === attackType)?.auth || authType
+      const result = await apiFn(type, token)
+      const data = result.data
+
+      setAttackPhase("extracting")
+      await new Promise(r => setTimeout(r, 400))
+      setAttackSteps(prev => [...prev, {
+        label: data.success ? "DATA EXPOSED" : "Attack blocked",
+        detail: data.message,
+        success: data.success,
+        expandable: !data.success,
+        payload: data.details,
+      }])
+      setAttackResult(data)
+      setAttackPhase("done")
+    } catch (err) {
+      setAttackSteps(prev => [...prev, {
+        label: "Attack error",
+        detail: err.message,
+        success: null,
+      }])
+      setAttackPhase("done")
     }
-  }, [zkpPhase, oauth2Phase]);
+  }, [attackType, authType, token, hasToken])
 
   const handleExecute = () => {
-    resetPanels();
-    setOauth2Phase("dim");
-    setZkpPhase("idle");
-  };
-
-  const handleReplay = () => {
-    if (replayDebounce) return;
-    setReplayDebounce(true);
-    resetPanels();
-    handleExecute();
-    replayTimeoutRef.current = setTimeout(() => setReplayDebounce(false), 1500);
-  };
-
-  const animationDone = oauth2Phase === "done" && zkpPhase === "done";
-  const authInfo = latestResult?.auth_info;
-  const token = authInfo?.type === "oauth2" ? authInfo.token : authInfo?.proof;
-  const hasToken = !!token;
+    resetPanels()
+    executeAttack()
+  }
 
   return (
     <div
@@ -165,7 +126,7 @@ function AttackPanel() {
           <div
             style={{
               fontWeight: 700,
-              fontSize: "12px",
+              fontSize: "20px",
               textTransform: "uppercase",
               letterSpacing: "0.07em",
               color: "var(--color-attack)",
@@ -185,15 +146,15 @@ function AttackPanel() {
             flexWrap: "wrap",
           }}
         >
-          {ATTACK_TYPES.map(({ key, label, icon }) => (
+          {ATTACK_TYPES.map(({ key, label, auth }) => (
             <button
               key={key}
               onClick={() => {
-                setAttackType(key);
+                setAttackType(key)
               }}
               style={{
-                flex: "1 1 140px",
-                padding: "6px var(--space-3)",
+                flex: "1 1 180px",
+                padding: "8px 12px",
                 border:
                   attackType === key
                     ? "2px solid var(--color-attack)"
@@ -211,18 +172,34 @@ function AttackPanel() {
             >
               <div
                 style={{
-                  fontSize: "11px",
+                  fontSize: "17px",
                   fontWeight: 700,
                   color:
                     attackType === key
                       ? "var(--color-attack)"
                       : "var(--color-text)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
+                  marginBottom: "2px",
                 }}
               >
-                <span>{icon}</span> {label}
+                {label}
+              </div>
+              <div
+                style={{
+                  fontSize: "15px",
+                  color: "var(--color-muted)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {auth === "oauth2" ? "OAuth2" : "ZKP"}
+              </div>
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "var(--color-muted)",
+                  marginTop: "2px",
+                }}
+              >
+                {ATTACK_TYPES.find(a => a.key === key)?.desc}
               </div>
             </button>
           ))}
@@ -238,7 +215,7 @@ function AttackPanel() {
               borderRadius: "var(--border-radius-md)",
               textAlign: "center",
               color: "var(--color-muted)",
-              fontSize: "12px",
+              fontSize: "18px",
               marginBottom: "var(--space-3)",
             }}
           >
@@ -247,7 +224,7 @@ function AttackPanel() {
         ) : (
           <div
             style={{
-              fontSize: "11px",
+              fontSize: "17px",
               fontFamily: "var(--font-mono)",
               color: "var(--color-muted)",
               marginBottom: "var(--space-3)",
@@ -258,240 +235,138 @@ function AttackPanel() {
           </div>
         )}
 
-        {/* Split panels */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "var(--space-2)",
-            marginBottom: "var(--space-3)",
-            minHeight: 0,
-          }}
-        >
-          {/* OAuth2 breach panel */}
+        {/* Auth type badge */}
+        {hasToken && (
           <div
             style={{
-              borderTop: "3px solid var(--color-oauth2)",
-              border:
-                oauth2Phase === "done"
-                  ? "1px solid var(--color-attack)"
-                  : "1px solid var(--color-border)",
-              borderRadius: "var(--border-radius-md)",
-              background: "var(--color-surface)",
-              overflow: "hidden",
-              opacity: oauth2Phase === "idle" ? 1 : 0.7,
-              transition: "opacity 0.15s ease",
-              position: "relative",
-              padding: "var(--space-3)",
-              minHeight: "120px",
+              display: "inline-block",
+              padding: "4px 12px",
+              borderRadius: "6px",
+              border: `1px solid ${authType === "oauth2" ? "var(--color-oauth2)" : "var(--color-zkp)"}`,
+              background: authType === "oauth2" ? "var(--color-oauth2-muted)" : "var(--color-zkp-muted)",
+              color: authType === "oauth2" ? "var(--color-oauth2)" : "var(--color-zkp)",
+              fontSize: "18px",
+              fontWeight: 700,
+              fontFamily: "var(--font-mono)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: "var(--space-3)",
             }}
           >
-            {oauth2Phase === "flash" && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(239,68,68,0.3)",
-                  animation: "fadeOut 0.15s ease forwards",
-                }}
-              />
-            )}
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: "11px",
-                color: "var(--color-oauth2)",
-                marginBottom: "6px",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              OAuth2
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "11px",
-                color: blinkState ? "var(--color-oauth2)" : "var(--color-text)",
-                transition: "color 0.05s ease",
-                wordBreak: "break-all",
-              }}
-            >
-              {token ? `"${token.slice(0, 16)}..."` : "(no token)"}
-            </div>
-            {(oauth2Phase === "exfil" || oauth2Phase === "done") && (
-              <div
-                style={{
-                  marginTop: "6px",
-                  display: "inline-block",
-                  background: "var(--color-attack)",
-                  color: "white",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                  fontWeight: 700,
-                  fontSize: "10px",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                EXFILTRATED
-              </div>
-            )}
-            {oauth2Phase === "done" && (
-              <button
-                onClick={handleReplay}
-                disabled={replayDebounce}
-                style={{
-                  marginTop: "8px",
-                  padding: "4px 10px",
-                  background: replayDebounce
-                    ? "var(--color-muted)"
-                    : "var(--color-attack)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontWeight: 600,
-                  fontSize: "11px",
-                  cursor: replayDebounce ? "not-allowed" : "pointer",
-                  opacity: replayDebounce ? 0.7 : 1,
-                }}
-              >
-                Replay
-              </button>
-            )}
+            {authType === "oauth2" ? "OAuth2" : "ZKP"} Token
           </div>
+        )}
 
-          {/* ZKP protection panel */}
+        {/* Step log */}
+        {attackSteps.length > 0 && (
           <div
             style={{
-              borderTop: "3px solid var(--color-zkp)",
-              border:
-                zkpPhase === "done"
-                  ? "1px solid var(--color-zkp)"
-                  : "1px solid var(--color-border)",
+              border: "1px solid var(--color-border)",
               borderRadius: "var(--border-radius-md)",
-              background: "var(--color-surface)",
+              marginBottom: "var(--space-3)",
               overflow: "hidden",
-              position: "relative",
-              padding: "var(--space-3)",
-              minHeight: "120px",
             }}
           >
-            {zkpPhase === "pulse" && (
+            {attackSteps.map((step, i) => (
               <div
+                key={i}
                 style={{
-                  position: "absolute",
-                  inset: 0,
+                  borderBottom: i < attackSteps.length - 1 ? "1px solid var(--color-border)" : "none",
+                  padding: "12px 16px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  pointerEvents: "none",
+                  flexDirection: "column",
+                  gap: "4px",
                 }}
               >
-                <div
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background:
+                        step.success === true
+                          ? "var(--color-zkp)"
+                          : step.success === false
+                            ? "var(--color-attack)"
+                            : step.success === null
+                              ? "var(--color-muted)"
+                              : "var(--color-muted)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: 700,
+                      fontFamily: "var(--font-mono)",
+                      color:
+                        step.success === false
+                          ? "var(--color-attack)"
+                          : step.success === null
+                            ? "var(--color-muted)"
+                            : "var(--color-text)",
+                    }}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+                <span
                   style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    background: "rgba(16,185,129,0.3)",
-                    animation: "pulse-scale 0.4s ease forwards",
+                    fontSize: "16px",
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--color-muted)",
+                    marginLeft: "16px",
                   }}
-                />
+                >
+                  {step.detail}
+                </span>
               </div>
-            )}
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: "11px",
-                color: "var(--color-zkp)",
-                marginBottom: "6px",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              ZKP
-            </div>
-            {(zkpPhase === "check" ||
-              zkpPhase === "label" ||
-              zkpPhase === "done") && (
-              <div
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "50%",
-                  background: "var(--color-zkp)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "white",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  marginBottom: "6px",
-                  animation: "fadeIn 0.3s ease forwards",
-                }}
-              >
-                &#10003;
-              </div>
-            )}
-            {(zkpPhase === "label" || zkpPhase === "done") && (
-              <div
-                style={{
-                  background: "var(--color-zkp-muted)",
-                  border: "1px solid var(--color-zkp)",
-                  borderRadius: "4px",
-                  padding: "4px 8px",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  color: "var(--color-zkp)",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                PROOF ACCEPTED
-              </div>
-            )}
+            ))}
           </div>
-        </div>
+        )}
 
         {/* Execute / Reset */}
         <div
           style={{
             display: "flex",
             gap: "var(--space-2)",
-            marginBottom: showForensics ? "var(--space-3)" : 0,
+            marginBottom: attackPhase === "done" && attackResult ? "var(--space-3)" : 0,
           }}
         >
           <button
             onClick={handleExecute}
-            disabled={!hasToken || oauth2Phase !== "idle"}
+            disabled={!hasToken || attackPhase !== "idle"}
             style={{
               flex: 1,
-              padding: "8px",
+              padding: "10px 16px",
               background:
-                !hasToken || oauth2Phase !== "idle"
+                !hasToken || attackPhase !== "idle"
                   ? "var(--color-muted)"
                   : "var(--color-attack)",
               color: "white",
               border: "none",
               borderRadius: "6px",
               fontWeight: 700,
-              fontSize: "13px",
+              fontSize: "20px",
               cursor:
-                !hasToken || oauth2Phase !== "idle" ? "not-allowed" : "pointer",
-              opacity: !hasToken || oauth2Phase !== "idle" ? 0.6 : 1,
+                !hasToken || attackPhase !== "idle" ? "not-allowed" : "pointer",
+              opacity: !hasToken || attackPhase !== "idle" ? 0.6 : 1,
             }}
           >
             Execute
           </button>
-          {animationDone && (
+          {attackPhase === "done" && (
             <button
               onClick={resetPanels}
               style={{
-                padding: "8px 12px",
+                padding: "10px 16px",
                 background: "transparent",
                 color: "var(--color-muted)",
                 border: "1px solid var(--color-border)",
                 borderRadius: "6px",
                 fontWeight: 600,
-                fontSize: "13px",
+                fontSize: "18px",
                 cursor: "pointer",
               }}
             >
@@ -500,182 +375,121 @@ function AttackPanel() {
           )}
         </div>
 
-        {/* Forensics cards */}
-        {showForensics && (
+        {/* Forensics card */}
+        {attackPhase === "done" && attackResult && (
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "var(--space-2)",
-              marginBottom: "var(--space-3)",
-            }}
-          >
-            <div
-              style={{
-                border: "1px solid var(--color-attack)",
-                borderRadius: "var(--border-radius-md)",
-                padding: "var(--space-3)",
-                background: "var(--color-attack-muted)",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 700,
-                  fontSize: "11px",
-                  color: "var(--color-attack)",
-                  marginBottom: "6px",
-                  textTransform: "uppercase",
-                }}
-              >
-                DATA EXFILTRATED
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
-                Token replay possible until expiry
-              </div>
-            </div>
-            <div
-              style={{
-                border: "1px solid var(--color-zkp)",
-                borderRadius: "var(--border-radius-md)",
-                padding: "var(--space-3)",
-                background: "var(--color-zkp-muted)",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 700,
-                  fontSize: "11px",
-                  color: "var(--color-zkp)",
-                  marginBottom: "6px",
-                  textTransform: "uppercase",
-                }}
-              >
-                NO DATA EXPOSED
-              </div>
-              <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
-                Proof useless without password
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Timing bar chart */}
-        {showForensics && (
-          <div
-            style={{
+              marginTop: "16px",
+              padding: "20px",
               background: "var(--color-bg)",
               border: "1px solid var(--color-border)",
-              borderRadius: "var(--border-radius-md)",
-              padding: "var(--space-3)",
+              borderRadius: "12px",
             }}
           >
             <div
               style={{
-                fontWeight: 700,
-                fontSize: "11px",
-                color: "var(--color-text)",
-                marginBottom: "var(--space-2)",
+                fontWeight: 800,
+                fontSize: "20px",
+                marginBottom: "12px",
                 textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                letterSpacing: "0.08em",
               }}
             >
-              Timing
+              Security Analysis
             </div>
-            <div style={{ marginBottom: "6px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "2px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--color-attack)",
-                    fontWeight: 600,
-                  }}
-                >
-                  OAuth2
-                </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--color-muted)",
-                  }}
-                >
-                  ~850ms
-                </span>
-              </div>
-              <div
-                style={{
-                  height: "6px",
-                  background: "var(--color-border)",
-                  borderRadius: "3px",
-                  overflow: "hidden",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  background: attackResult.success
+                    ? "rgba(220,38,38,0.06)"
+                    : "rgba(16,185,129,0.06)",
+                  border: "1px solid " +
+                    (attackResult.success
+                      ? "rgba(220,38,38,0.2)"
+                      : "rgba(16,185,129,0.2)"),
                 }}
               >
                 <div
                   style={{
-                    width: "95%",
-                    height: "100%",
-                    background: "var(--color-attack)",
-                    borderRadius: "3px",
-                  }}
-                />
-              </div>
-            </div>
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "2px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--color-zkp)",
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    fontSize: "20px",
+                    marginBottom: "8px",
+                    color: attackResult.success
+                      ? "var(--color-attack)"
+                      : "var(--color-zkp)",
                   }}
                 >
-                  ZKP
-                </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--color-muted)",
-                  }}
-                >
-                  ~200ms
-                </span>
-              </div>
-              <div
-                style={{
-                  height: "6px",
-                  background: "var(--color-border)",
-                  borderRadius: "3px",
-                  overflow: "hidden",
-                }}
-              >
+                  {attackResult.success ? "VULNERABLE" : "PROTECTED"}
+                </div>
                 <div
                   style={{
-                    width: "22%",
-                    height: "100%",
-                    background: "var(--color-zkp)",
-                    borderRadius: "3px",
+                    fontSize: "17px",
+                    color: "var(--color-text)",
+                    marginBottom: "6px",
                   }}
-                />
+                >
+                  {attackResult.details?.vulnerability || attackResult.message}
+                </div>
+                {attackResult.details?.countermeasure && (
+                  <div
+                    style={{
+                      fontSize: "15px",
+                      color: "var(--color-muted)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    Countermeasure: {attackResult.details.countermeasure}
+                  </div>
+                )}
+                {attackResult.details?.countermeasure_in_place && (
+                  <div
+                    style={{
+                      fontSize: "15px",
+                      color: "var(--color-zkp)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {attackResult.details.countermeasure_in_place}
+                  </div>
+                )}
+                {attackResult.details?.severity && (
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      fontSize: "15px",
+                      fontWeight: 700,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-attack)",
+                    }}
+                  >
+                    Severity: {attackResult.details.severity}
+                  </div>
+                )}
+                {attackResult.details?.math && (
+                  <pre
+                    style={{
+                      margin: "8px 0 0",
+                      padding: "12px",
+                      background: "var(--color-surface)",
+                      borderRadius: "6px",
+                      fontSize: "14px",
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-attack)",
+                      overflow: "auto",
+                    }}
+                  >
+                    {JSON.stringify(attackResult.details.math, null, 2)}
+                  </pre>
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
     </div>
-  );
+  )
 }
 
-export default AttackPanel;
+export default AttackPanel
