@@ -1,3 +1,4 @@
+import json
 import pytest
 
 
@@ -164,3 +165,52 @@ class TestAttackSimulations:
             }
         )
         assert attack_response.status_code == 400
+
+
+class TestAlgorithmConfusion:
+    def test_algorithm_confusion_oauth2_rejected(self, client, oauth2_pkjwt_agent):
+        """With correct HS256 allowlist, algorithm confusion attacks are blocked."""
+        from backend.auth.oauth2 import oauth2_auth
+        token = oauth2_auth.create_access_token(
+            data={"sub": str(oauth2_pkjwt_agent.id), "agent_name": oauth2_pkjwt_agent.name, "type": "oauth2"}
+        )
+        resp = client.post("/api/attacks/algorithm-confusion",
+            json={"auth_type": "oauth2", "token": token, "attack_type": "algorithm-confusion"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert "algorithm" in data["message"].lower()
+
+    def test_algorithm_confusion_zkp_returns_unsupported(self, client, zkp_agent):
+        resp = client.post("/api/attacks/algorithm-confusion",
+            json={"auth_type": "zkp", "token": "dummy", "attack_type": "algorithm-confusion"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert "only applies to oauth2" in data["message"].lower()
+
+
+class TestNonceReuse:
+    def test_nonce_reuse_zkp_returns_educational_detail(self, client, zkp_agent):
+        """Nonce reuse returns math details showing the exploit without actually compromising anything."""
+        mock_proof = json.dumps({
+            "commitment": "a" * 128,
+            "response": "b" * 64,
+        })
+        resp = client.post("/api/attacks/nonce-reuse",
+            json={"auth_type": "zkp", "token": mock_proof, "attack_type": "nonce-reuse"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["attack_type"] == "nonce-reuse"
+        assert data["auth_type"] == "zkp"
+        details = data["details"]
+        assert "vulnerability" in details
+        assert "math" in details
+        assert details["math"]["formula"] == "x = (s1 - s2) / (c1 - c2) mod q"
+
+    def test_nonce_reuse_oauth2_returns_unsupported(self, client, oauth2_pkjwt_agent):
+        resp = client.post("/api/attacks/nonce-reuse",
+            json={"auth_type": "oauth2", "token": "dummy", "attack_type": "nonce-reuse"})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is False
+        assert "only applies to zkp" in resp.json()["message"].lower()

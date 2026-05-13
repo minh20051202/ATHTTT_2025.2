@@ -138,28 +138,29 @@ def oauth2_agent(db, demo_user):
 
 @pytest.fixture(scope="function")
 def zkp_agent(db, demo_user):
-    """Create a ZKP agent with a stored public key.
+    """Create a ZKP agent with a stored public key using production params.
 
     Client generates random private key x, computes y = g^x mod p locally.
     Server stores only y. Private key is stored on agent._test_private_key for tests.
     """
     import secrets
     import json
+    from backend.auth import zkp as zkp_module
 
-    # Domain params (from backend/auth/zkp.py)
-    P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-    Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
-    G = 4
+    # Use the server's current (2048-bit) domain params
+    P_int = zkp_module._DHP
+    Q_int = zkp_module._DHQ
+    G_int = zkp_module._DHG
 
     # Generate random private key (client-side simulation)
-    private_key_int = secrets.randbelow(Q)
-    public_key_int = pow(G, private_key_int, P)
+    private_key_int = secrets.randbelow(Q_int)
+    public_key_int = pow(G_int, private_key_int, P_int)
 
     public_key_json = json.dumps({
         "y": public_key_int,
-        "p": P,
-        "g": G,
-        "q": Q,
+        "p": P_int,
+        "g": G_int,
+        "q": Q_int,
     })
 
     agent = Agent(
@@ -173,7 +174,7 @@ def zkp_agent(db, demo_user):
     db.commit()
     db.refresh(agent)
     # Store hex private key so tests can use it to sign (sign_data expects hex)
-    agent._test_private_key = hex(private_key_int)
+    agent._test_private_key = format(private_key_int, 'x')
     return agent
 
 
@@ -231,3 +232,14 @@ def setup_test_env():
     yield
     if os.path.exists(db_path):
         os.remove(db_path)
+
+
+def _make_oauth2_token(agent):
+    """Create a valid OAuth2 access token for a test agent.
+    Used by attack simulation tests.
+    """
+    from backend.auth.oauth2 import oauth2_auth
+    token = oauth2_auth.create_access_token(
+        data={"sub": str(agent.id), "agent_name": agent.name, "type": "oauth2"}
+    )
+    return token
