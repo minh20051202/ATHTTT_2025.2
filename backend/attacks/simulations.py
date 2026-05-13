@@ -288,8 +288,8 @@ async def credential_stuffing_attack(request: AttackRequest):
         raise AppError(
             error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
             message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
+        status_code=500
+    )
 
 
 @router.post("/algorithm-confusion", response_model=AttackResponse)
@@ -326,6 +326,53 @@ async def algorithm_confusion_attack(request: AttackRequest):
             "what_attacker_tried": "alg: RS256 → sign token with server's RSA public key as HMAC secret",
             "countermeasure_in_place": "Server uses HS256, verifies with symmetric JWT secret only",
             "result": "Token rejected — never accepted without correct HS256 signature",
+        },
+        timing=timing
+    )
+
+
+@router.post("/nonce-reuse", response_model=AttackResponse)
+async def nonce_reuse_attack(request: AttackRequest):
+    """Simulate ZKP nonce reuse attack (educational PoC).
+    If a client generates two proofs with the SAME random nonce r:
+      s1 = r + c1·x (mod q)
+      s2 = r + c2·x (mod q)
+    Subtract: s1 - s2 = (c1 - c2)·x  →  x = (s1 - s2) / (c1 - c2) (mod q)
+    Private key recovered. All future proofs forgeable.
+    """
+    timing = {}
+    attack_start = time.time()
+    auth_type = request.auth_type or "zkp"
+
+    if auth_type != "zkp":
+        return AttackResponse(
+            attack_type="nonce-reuse",
+            auth_type=auth_type,
+            success=False,
+            message="Nonce reuse only applies to ZKP",
+            details={"note": "Schnorr proof security depends on random nonce per proof"},
+            timing={}
+        )
+
+    timing["full_attack"] = time.time() - attack_start
+
+    return AttackResponse(
+        attack_type="nonce-reuse",
+        auth_type="zkp",
+        success=False,
+        message="Nonce reuse educational PoC — real attack requires two proof observations",
+        details={
+            "vulnerability": "Nonce reuse → private key extraction in ONE shot",
+            "math": {
+                "given": ["Proof1(t, s1)", "Proof2(t, s2) — same commitment t = g^r"],
+                "challenge1": "c1 = H(t || token1) mod q",
+                "challenge2": "c2 = H(t || token2) mod q  (c2 ≠ c1 when token1 ≠ token2)",
+                "formula": "x = (s1 - s2) / (c1 - c2) mod q",
+                "impact": "PRIVATE KEY RECOVERED — all future proofs forgeable, identity compromised"
+            },
+            "countermeasure": "Use CSPRNG for nonce generation. Never reuse r. Log all commitments; flag duplicate t values per agent.",
+            "severity": "CRITICAL — no recovery without complete key rotation",
+            "detection": "Server-side monitoring for duplicate commitment t values"
         },
         timing=timing
     )
