@@ -73,8 +73,7 @@ class TestAttackSimulations:
         assert data["success"] is False
         assert data["auth_type"] == "zkp"
         assert "vulnerability" in data["details"]
-        # ZKP should have no vulnerability (or "None")
-        assert data["details"]["vulnerability"] in ("None - ZKP proofs are non-reusable", "None")
+        assert data["details"]["vulnerability"] == "Challenge token single-use enforced at server"
 
     def test_token_theft_on_oauth2_exposes_data(self, client, oauth2_pkjwt_agent):
         """Token theft on OAuth2 exposes credential data."""

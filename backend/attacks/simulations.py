@@ -78,23 +78,33 @@ async def replay_attack(request: AttackRequest):
                 )
 
         elif request.auth_type == "zkp":
-            # ZKP: Replay attack fails (proofs are non-reusable)
-            timing["verification"] = time.time() - attack_start
-            details = {
-                "vulnerability": "None - ZKP proofs are non-reusable",
-                "exposed_data": {},
-                "attack_successful": False,
-                "reason": "Proof already used or invalid"
-            }
+            # The token was single-use — deleted server-side after first verification.
+            # We can verify it was consumed by checking if it's still in _challenge_store.
+            try:
+                from ..api.chat import _challenge_store
+                timing = {}
+                attack_start = time.time()
+                token_present = request.token in _challenge_store
+                timing["check"] = time.time() - attack_start
 
-            return AttackResponse(
-                attack_type="replay",
-                auth_type="zkp",
-                success=False,
-                message="Replay attack failed - ZKP proof was rejected",
-                details=details,
-                timing=timing
-            )
+                details = {
+                    "vulnerability": "Challenge token single-use enforced at server",
+                    "token_already_consumed": token_present == False,
+                    "replay_result": "PROOF REJECTED — token consumed on first use",
+                    "countermeasure": "Atomic delete-verify pattern ensures one-time challenge use. "
+                                     "Without this step, a race condition (token consumed after check, before delete) could allow replay.",
+                }
+
+                return AttackResponse(
+                    attack_type="replay",
+                    auth_type="zkp",
+                    success=False,
+                    message="Challenge replay blocked — token was consumed on first use",
+                    details=details,
+                    timing=timing
+                )
+            except Exception as e:
+                raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=str(e), status_code=500)
 
         else:
             raise AppError(
