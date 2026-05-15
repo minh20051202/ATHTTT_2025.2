@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # These fields accept comma-separated strings in env vars, parsed after init
     _env_cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
+    # Logging simulation
+    log_buffer: List[dict] = []
+
     @property
     def cors_origins(self) -> List[str]:
         return [u.strip() for u in self._env_cors_origins.split(",") if u.strip()]

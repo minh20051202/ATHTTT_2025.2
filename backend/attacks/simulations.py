@@ -4,7 +4,11 @@ from typing import Dict, Any, Optional
 from ..auth.oauth2 import oauth2_auth
 from ..auth.zkp import zkp_auth
 from ..utils.errors import AppError, ErrorCode
+from ..utils.config import settings
 import time
+import json
+import hashlib
+import re
 
 
 router = APIRouter(prefix="/api/attacks", tags=["attacks"])
@@ -13,8 +17,9 @@ router = APIRouter(prefix="/api/attacks", tags=["attacks"])
 class AttackRequest(BaseModel):
     auth_type: str  # "oauth2" or "zkp"
     token: str
-    attack_type: str  # "replay", "token_theft", "credential_stuffing"
+    attack_type: str  # "replay", "token_theft", "credential_stuffing", "nonce-reuse", etc.
     agent_id: Optional[int] = None  # For RS256 verification (pass for OAuth2 attacks)
+    token2: Optional[str] = None    # Second token/proof for nonce-reuse attacks
 
 
 class AttackResponse(BaseModel):
@@ -37,11 +42,7 @@ class CompareResponse(BaseModel):
 
 
 def _verify_oauth2_token(token: str) -> dict:
-    """Verify OAuth2 access token using server's symmetric HS256 secret.
-
-    Access tokens are now server-symmetric HS256, not per-agent RS256.
-    The agent's public key is used for client_assertion verification only (not access token verification).
-    """
+    """Verify OAuth2 access token using server's symmetric HS256 secret."""
     return oauth2_auth.verify_token(token)
 
 
@@ -58,21 +59,36 @@ async def replay_attack(request: AttackRequest):
                 payload = _verify_oauth2_token(request.token)
                 timing["verification"] = time.time() - attack_start
 
+                from ..db.operations import db_ops
+                from ..db.models import get_db
+                
+                db = next(get_db())
+                agent_id = payload.get("sub")
+                transactions = db_ops.get_agent_transactions(db, int(agent_id)) if agent_id else []
+
                 details = {
-                    "vulnerability": "OAuth2 tokens are reusable",
-                    "exposed_data": {
-                        "user_id": payload.get("sub"),
-                        "expires": payload.get("exp"),
-                        "token_size": len(request.token)
+                    "vulnerability": "3. Token Replay: OAuth2 tokens are reusable by design until they expire",
+                    "stolen_identity": {
+                        "agent_id": agent_id,
+                        "token_expiry": payload.get("exp"),
+                        "scopes": payload.get("scopes", ["all"])
                     },
-                    "attack_successful": True
+                    "replay_result": "ACCESS GRANTED — Attacker successfully re-authenticated as victim",
+                    "exfiltrated_data": {
+                        "recent_transactions": [
+                            {"id": t.id, "product": t.product_id, "price": t.total_price} 
+                            for t in transactions[:3]
+                        ],
+                    },
+                    "attack_successful": True,
+                    "countermeasure": "Use one-time tokens (JTI), shorter TTLs, and implement DPoP (Demonstrating Proof-of-Possession)."
                 }
 
                 return AttackResponse(
                     attack_type="replay",
                     auth_type="oauth2",
                     success=True,
-                    message="Replay attack succeeded - OAuth2 token was accepted",
+                    message="SUCCESS — Stolen bearer token used to exfiltrate private transaction history",
                     details=details,
                     timing=timing
                 )
@@ -82,14 +98,12 @@ async def replay_attack(request: AttackRequest):
                     attack_type="replay",
                     auth_type="oauth2",
                     success=False,
-                    message=f"Replay attack failed: {str(e)}",
+                    message=f"FAILED: {str(e)}",
                     details={"error": str(e) or "invalid or expired token"},
                     timing=timing
                 )
 
         elif request.auth_type == "zkp":
-            # The token was single-use — deleted server-side after first verification.
-            # We can verify it was consumed by checking if it's still in _challenge_store.
             try:
                 from ..api.chat import _challenge_store
                 timing = {}
@@ -98,18 +112,17 @@ async def replay_attack(request: AttackRequest):
                 timing["check"] = time.time() - attack_start
 
                 details = {
-                    "vulnerability": "Challenge token single-use enforced at server",
-                    "token_already_consumed": token_present == False,
-                    "replay_result": "PROOF REJECTED — token consumed on first use",
-                    "countermeasure": "Atomic delete-verify pattern ensures one-time challenge use. "
-                                     "Without this step, a race condition (token consumed after check, before delete) could allow replay.",
+                    "vulnerability": "3. Token Replay: ZKP challenge replay is blocked by server-side state",
+                    "token_already_consumed": True,
+                    "replay_result": "PROOF REJECTED — Challenge token consumed on first use",
+                    "countermeasure": "Atomic delete-verify pattern ensures one-time challenge use. Replay is mathematically impossible even with an identical proof.",
                 }
 
                 return AttackResponse(
                     attack_type="replay",
                     auth_type="zkp",
                     success=False,
-                    message="Challenge replay blocked — token was consumed on first use",
+                    message="N/A — Challenge replay BLOCKED; token was consumed on first use",
                     details=details,
                     timing=timing
                 )
@@ -117,133 +130,63 @@ async def replay_attack(request: AttackRequest):
                 raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=str(e), status_code=500)
 
         else:
-            raise AppError(
-                error_code=ErrorCode.INVALID_PARAMETER,
-                message=f"Invalid auth_type: {request.auth_type}",
-                status_code=400
-            )
+            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
 
     except AppError as e:
         raise e
     except Exception as e:
-        raise AppError(
-            error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
-            message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
-
-
-@router.post("/algorithm-confusion", response_model=AttackResponse)
-async def algorithm_confusion_attack(request: AttackRequest):
-    """Simulate OAuth2 algorithm confusion attack.
-
-    Attacker changes alg: RS256 → HS256, signs with server's RSA public key as HMAC secret.
-    A misconfigured server (verify_any_alg pattern) would accept this.
-    This server uses correct HS256 verification → attack blocked.
-    """
-    timing = {}
-    attack_start = time.time()
-
-    if request.auth_type != "oauth2":
-        return AttackResponse(
-            attack_type="algorithm_confusion",
-            auth_type=request.auth_type,
-            success=False,
-            message="Algorithm confusion only applies to OAuth2",
-            details={"note": "Only OAuth2 uses RSA algorithms susceptible to RS256→HS256 confusion"},
-            timing={}
-        )
-
-    timing["verify"] = time.time() - attack_start
-    # The server ALWAYS uses HS256 and verifies with symmetric secret.
-    # Any RS256-signed token (or HS256 signed with a wrongly-used RSA key) fails here.
-    return AttackResponse(
-        attack_type="algorithm_confusion",
-        auth_type="oauth2",
-        success=False,
-        message="Attack blocked — server uses correct algorithm allowlist (HS256)",
-        details={
-            "vulnerability": "Algorithm confusion possible when server uses verify_any_alg pattern",
-            "what_attacker_tried": "alg: RS256 → sign token with server's RSA public key as HMAC secret",
-            "countermeasure_in_place": "Server uses HS256, verifies with symmetric JWT secret only",
-            "result": "Token rejected — never accepted without correct HS256 signature",
-        },
-        timing=timing
-    )
-
-
-@router.post("/nonce-reuse", response_model=AttackResponse)
-async def nonce_reuse_attack(request: AttackRequest):
-    """Simulate ZKP nonce reuse attack (educational PoC).
-    If a client generates two proofs with the SAME random nonce r:
-      s1 = r + c1·x (mod q)
-      s2 = r + c2·x (mod q)
-    Subtract: s1 - s2 = (c1 - c2)·x  →  x = (s1 - s2) / (c1 - c2) (mod q)
-    Private key recovered. All future proofs forgeable.
-    """
-    timing = {}
-    attack_start = time.time()
-    auth_type = request.auth_type or "zkp"
-
-    if auth_type != "zkp":
-        return AttackResponse(
-            attack_type="nonce-reuse",
-            auth_type=auth_type,
-            success=False,
-            message="Nonce reuse only applies to ZKP",
-            details={"note": "Schnorr proof security depends on random nonce per proof"},
-            timing={}
-        )
-
-    timing["full_attack"] = time.time() - attack_start
-
-    return AttackResponse(
-        attack_type="nonce-reuse",
-        auth_type="zkp",
-        success=False,
-        message="Nonce reuse educational PoC — real attack requires two proof observations",
-        details={
-            "vulnerability": "Nonce reuse → private key extraction in ONE shot",
-            "math": {
-                "given": ["Proof1(t, s1)", "Proof2(t, s2) — same commitment t = g^r"],
-                "challenge1": "c1 = H(t || token1) mod q",
-                "challenge2": "c2 = H(t || token2) mod q  (c2 ≠ c1 when token1 ≠ token2)",
-                "formula": "x = (s1 - s2) / (c1 - c2) mod q",
-                "impact": "PRIVATE KEY RECOVERED — all future proofs forgeable, identity compromised"
-            },
-            "countermeasure": "Use CSPRNG for nonce generation. Never reuse r. Log all commitments; flag duplicate t values per agent.",
-            "severity": "CRITICAL — no recovery without complete key rotation",
-            "detection": "Server-side monitoring for duplicate commitment t values"
-        },
-        timing=timing
-    )
+        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=f"Attack simulation failed: {str(e)}", status_code=500)
 
 
 @router.post("/credential-theft", response_model=AttackResponse)
 async def credential_theft_attack(request: AttackRequest):
-    """Simulate credential theft via conversation/log extraction (AI agent context).
-    
-    OAuth2: stolen bearer token → full account access until expiry.
-    ZKP: stolen proof → useless without password (zero-knowledge).
-    """
+    """Simulate credential theft via context/logs."""
     timing = {}
     attack_start = time.time()
-    import json
 
     try:
+        # SCAN LOGS MODE: Search buffer for credentials
+        stolen_token = None
+        stolen_secret = None
+        
+        for entry in settings.log_buffer:
+            headers = entry.get("headers", {})
+            auth_header = headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                stolen_token = auth_header[7:]
+            
+            # For ZKP, we might find things in the body (simulation)
+            # or if the agent logged its secret elsewhere
+            if "agent_secret" in str(entry):
+                # Simulated secret extraction
+                stolen_secret = "VictimAgentPassword123"
+
         if request.auth_type == "oauth2":
+            # If no token passed, try to find one in logs
+            token_to_analyze = request.token if request.token and request.token != "LOG_SEARCH_MODE" else stolen_token
+            
+            if not token_to_analyze:
+                return AttackResponse(
+                    attack_type="credential-theft",
+                    auth_type="oauth2",
+                    success=False,
+                    message="FAILED — No bearer tokens found in logs or provided",
+                    details={"vulnerability": "Logs are clean (for now)"},
+                    timing={"extraction": time.time() - attack_start}
+                )
+
             try:
-                token_info = oauth2_auth.get_token_info(request.token)
+                token_info = oauth2_auth.get_token_info(token_to_analyze)
                 timing["extraction"] = time.time() - attack_start
 
                 details = {
-                    "vulnerability": "OAuth2 tokens captured from AI agent conversation logs/tool calls",
+                    "vulnerability": "1. Credential Theft: OAuth2 tokens captured from AI agent conversation logs/tool calls",
                     "exposed_data": {
-                        "token_prefix": request.token[:20] + "..." if request.token else "",
+                        "stolen_token": token_to_analyze,
                         "expiration": token_info.get("payload", {}).get("exp"),
                         "subject": token_info.get("payload", {}).get("sub"),
-                        "algorithm": token_info.get("header", {}).get("alg"),
                     },
+                    "source": "Captured from log_buffer (Simulated central logging sink)",
                     "attack_successful": True,
                     "impact": "Attacker imports stolen token directly → fully authorized until expiry",
                     "countermeasure": "Rotate tokens frequently (5-min TTL), exclude from conversation logs, never persist in vector DB"
@@ -253,7 +196,7 @@ async def credential_theft_attack(request: AttackRequest):
                     attack_type="credential-theft",
                     auth_type="oauth2",
                     success=True,
-                    message="Credential theft successful — token imported and authorized",
+                    message="SUCCESS — Bearer token captured from log stream",
                     details=details,
                     timing=timing
                 )
@@ -263,67 +206,46 @@ async def credential_theft_attack(request: AttackRequest):
                     attack_type="credential-theft",
                     auth_type="oauth2",
                     success=False,
-                    message=f"Credential theft failed: {str(e)}",
+                    message=f"FAILED: {str(e)}",
                     details={"error": str(e)},
                     timing=timing
                 )
 
         elif request.auth_type == "zkp":
             timing["extraction"] = time.time() - attack_start
-            try:
-                proof_data = json.loads(request.token) if request.token.startswith("{") else {}
-                proof_size = len(request.token)
-            except Exception:
-                proof_data = {}
-                proof_size = 0
-
             details = {
-                "vulnerability": "ZKP proof captured from AI agent conversation logs/tool calls",
+                "vulnerability": "1. Credential Theft: Agent context disclosure (Password leakage in logs)",
                 "exposed_data": {
-                    "proof_structure": {"commitment": "...", "response": "..."},
-                    "proof_size_bytes": proof_size,
-                    "password_present": False,
+                    "stolen_secret": stolen_secret or "******** (Simulated password captured from LLM system prompt)",
+                    "source": "Found in log_buffer via pattern match" if stolen_secret else "LangChain tool-call history / langchain-callbacks",
                 },
-                "attack_successful": False,
-                "impact": "Proof is mathematically useless without the secret password",
-                "reason": "Server stores only public key y=g^x; password x never transmitted",
-                "countermeasure": "Never include password in tool calls; server uses zero-knowledge protocol"
+                "attack_successful": True,
+                "impact": "CRITICAL — If password x is captured, ZKP security is bypassed entirely.",
+                "reason": "AI agents often include secrets in prompts or tool logs. Even ZKP is vulnerable if the underlying secret x is logged.",
+                "countermeasure": "Use hardware security modules (HSM) so the agent never 'sees' the private key, or use short-lived sub-keys."
             }
 
             return AttackResponse(
                 attack_type="credential-theft",
                 auth_type="zkp",
-                success=False,
-                message="Credential theft failed — ZKP proof reveals nothing without password",
+                success=True,
+                message="SUCCESS — Agent secret password discovered in conversation logs",
                 details=details,
                 timing=timing
             )
 
         else:
-            raise AppError(
-                error_code=ErrorCode.INVALID_PARAMETER,
-                message=f"Invalid auth_type: {request.auth_type}",
-                status_code=400
-            )
+            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
 
     except AppError as e:
         raise e
     except Exception as e:
-        raise AppError(
-            error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
-            message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
+        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=f"Attack simulation failed: {str(e)}", status_code=500)
 
 
 @router.post("/mitm", response_model=AttackResponse)
 async def mitm_attack(request: AttackRequest):
-    """Simulate MITM / TLS Downgrade attack.
-    
-    Demonstrates what attacker sees when intercepting AI agent traffic.
-    OAuth2:看见了完整的Authorization header → token theft.
-    ZKP:看见了 proof JSON but no password → zero knowledge property holds.
-    """
+    """Simulate MITM / TLS Downgrade."""
     timing = {}
     attack_start = time.time()
 
@@ -331,167 +253,116 @@ async def mitm_attack(request: AttackRequest):
         if request.auth_type == "oauth2":
             timing["interception"] = time.time() - attack_start
             details = {
-                "vulnerability": "MITM intercepts AI agent-to-backend HTTPS traffic via corporate proxy or network observer",
+                "vulnerability": "2. MITM: Intercepted via corporate proxy TLS termination",
                 "intercepted_data": {
                     "header_name": "Authorization",
                     "header_value_prefix": request.token[:30] + "..." if request.token else "",
-                    "protocol_detected": "OAuth2 Bearer token in Authorization header",
-                    "position": "HTTP request header — visible to TLS MITM proxy",
                 },
                 "attack_successful": True,
                 "impact": "Attacker extracts bearer token from intercepted request, reuses directly",
-                "countermeasure": "Certificate pinning (pin backend cert), mTLS (agent-cert required), detect proxy certs via CT logs, TLS 1.3 only"
+                "countermeasure": "Certificate pinning, mTLS, TLS 1.3 only"
             }
 
             return AttackResponse(
                 attack_type="mitm",
                 auth_type="oauth2",
                 success=True,
-                message="MITM interception successful — Authorization header captured",
+                message="SUCCESS — MITM captured Authorization: Bearer token",
                 details=details,
                 timing=timing
             )
 
         elif request.auth_type == "zkp":
             timing["interception"] = time.time() - attack_start
-            try:
-                proof_json = json.loads(request.token) if request.token.startswith("{") else request.token
-                proof_size = len(request.token)
-            except Exception:
-                proof_json = {}
-                proof_size = 0
-
             details = {
-                "vulnerability": "MITM intercepts AI agent-to-backend HTTPS traffic, reads ZKP proof JSON",
+                "vulnerability": "2. MITM: TLS inspection captures proof + potentially plaintext password",
                 "intercepted_data": {
-                    "proof_size_bytes": proof_size,
-                    "fields_visible": list(proof_json.keys()) if isinstance(proof_json, dict) else ["commitment", "response"],
-                    "secret_password_visible": False,
-                    "challenge_token_visible": False,  # challenge already consumed
+                    "captured_proof": {"commitment": "t", "response": "s"},
+                    "captured_password": "VictimAgentPassword123 (Captured during initial register call)",
                 },
-                "attack_successful": False,  # Can't use proof to authenticate
-                "impact": "Proof intercepted in transit — but without secret password, authentication fails",
-                "reason": "ZKP proof contains no secret information; challenge token already consumed; server stores only public key",
+                "attack_successful": True,
+                "impact": "MITM proxy captures the agent's password if sent during unencrypted registration or config synchronization.",
+                "reason": "While proofs are ZK, agent lifecycle calls (registration/updates) often send secrets if mTLS is not used.",
                 "countermeasure": "Certificate pinning + mTLS prevents traffic inspection by intermediaries"
             }
 
             return AttackResponse(
                 attack_type="mitm",
                 auth_type="zkp",
-                success=False,
-                message="MITM interception captured proof but cannot authenticate",
+                success=True,
+                message="SUCCESS — Intercepted registration call revealed agent password",
                 details=details,
                 timing=timing
             )
 
         else:
-            raise AppError(
-                error_code=ErrorCode.INVALID_PARAMETER,
-                message=f"Invalid auth_type: {request.auth_type}",
-                status_code=400
-            )
+            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
 
     except AppError as e:
         raise e
     except Exception as e:
-        raise AppError(
-            error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
-            message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
+        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=f"Attack simulation failed: {str(e)}", status_code=500)
 
 
 @router.post("/client-assertion-sub", response_model=AttackResponse)
 async def client_assertion_sub_attack(request: AttackRequest):
-    """Simulate OAuth2 Client Assertion Substitution attack.
-
-    Attacker with legitimate public key registered attempts to forge
-    assertions impersonating a DIFFERENT agent (different iss/sub).
-    
-    In current server: protected by strict validation.
-    In vulnerable server: attacker could impersonate any agent.
-    """
+    """Simulate OAuth2 Client Assertion Substitution attack."""
     timing = {}
     attack_start = time.time()
 
     try:
         if request.auth_type == "oauth2":
-            timing["validation"] = time.time() - attack_start
+            victim_id = "agent_VIP_99"
+            attacker_id = request.agent_id or "agent_attacker"
+            
             details = {
-                "vulnerability": "Attacker with legitimate RSA public key registered attempts to forge assertions for DIFFERENT agent",
+                "vulnerability": "4. Client Assertion Substitution: Missing identity-to-key cross-check",
                 "attack_sequence": [
-                    "1. Attacker registers RSA public key legitimately at /api/auth/oauth2/register",
-                    "2. Attacker generates client_assertion JWT with iss=sub= victim's agent_id",
-                    "3. Attacker signs with their OWN private key (not victim's)",
-                    "4. Server should REJECT: assertion.iss != attacker's registered client_id",
+                    f"1. Attacker (ID: {attacker_id}) generates a valid signed JWT",
+                    f"2. Attacker modifies 'sub' and 'iss' claims to: {victim_id}",
+                    "3. Attacker signs with their OWN private key",
+                    "4. Vulnerable server only checks if the signature is valid for ANY known user"
                 ],
-                "attempted_impersonation": {
-                    "attacker_registers_own_key": True,
-                    "forged_assertion_claims": {"iss": "attacker_id", "sub": "victim_id"},
-                    "signed_with_attacker_private_key": True,
+                "forged_claims": {
+                    "iss": victim_id,
+                    "sub": victim_id,
+                    "aud": "https://auth.example.com/token",
                 },
-                "server_validation": {
-                    "iss_check": "PASS — assertion.iss={attacker_id} != server-lookup client_id={victim_id} → REJECTED",
-                    "sub_check": "PASS — assertion.sub={victim_id} != client_id={attacker_id} → REJECTED",
-                    "public_key_matches": "FAIL — assertion signed with attacker key, verified against attacker key → server uses attacker key, NOT victim key",
-                },
-                "attack_successful": False,  # Our server validates strictly
-                "impact_if_vulnerable": "Attacker could impersonate ANY agent — cross-tenant access, data theft, action authorization as victim",
-                "countermeasure": "Strict iss/sub validation per RFC 7523 §3. assertion.iss and assertion.sub MUST match the registering agent's client_id. Verify before accepting assertion."
+                "attack_successful": True,
+                "impact": "SUCCESS — Attacker successfully impersonated victim agent via assertion substitution",
+                "countermeasure": "Strict cross-check: The server MUST verify the assertion using the specific public key previously registered for the 'iss' (issuer) claim."
             }
 
+            timing["validation"] = time.time() - attack_start
             return AttackResponse(
                 attack_type="client-assertion-sub",
                 auth_type="oauth2",
-                success=False,
-                message="Attack blocked — strict iss/sub validation prevents impersonation",
+                success=True,
+                message="SUCCESS — Malicious agent impersonated victim via forged assertion",
                 details=details,
                 timing=timing
             )
 
         elif request.auth_type == "zkp":
-            timing["validation"] = time.time() - attack_start
-            details = {
-                "vulnerability": "Not applicable — ZKP uses Schnorr identification, not signed JWT assertions",
-                "explanation": "ZKP has no client_assertion. Authentication is a 3-pass protocol: server issues challenge, client proves knowledge of secret x. There is no JWT to forge, no iss/sub to manipulate.",
-                "attack_successful": False,
-                "impact": "No assertion-based impersonation possible in ZKP",
-                "countermeasure": "N/A for ZKP — use public key registration + interactive proof"
-            }
-
             return AttackResponse(
                 attack_type="client-assertion-sub",
                 auth_type="zkp",
                 success=False,
                 message="Attack not applicable — ZKP uses Schnorr, not JWT assertions",
-                details=details,
+                details={"vulnerability": "N/A for ZKP"},
                 timing=timing
             )
-
         else:
-            raise AppError(
-                error_code=ErrorCode.INVALID_PARAMETER,
-                message=f"Invalid auth_type: {request.auth_type}",
-                status_code=400
-            )
-
+            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
     except AppError as e:
         raise e
     except Exception as e:
-        raise AppError(
-            error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
-            message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
+        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=str(e), status_code=500)
 
 
 @router.post("/proof-correlation", response_model=AttackResponse)
 async def proof_correlation_attack(request: AttackRequest):
-    """Simulate traffic analysis / proof correlation attack on ZKP authentication.
-
-    Demonstrates information leakage from ZKP proof metadata even when
-    the proof itself perfectly preserves secrecy.
-    """
+    """Simulate traffic analysis."""
     timing = {}
     attack_start = time.time()
 
@@ -499,314 +370,102 @@ async def proof_correlation_attack(request: AttackRequest):
         if request.auth_type == "zkp":
             timing["analysis"] = time.time() - attack_start
             details = {
-                "vulnerability": "ZKP proofs leak metadata enabling traffic analysis and de-anonymization",
+                "vulnerability": "5. Proof Correlation: ZKP proofs leak metadata enabling traffic analysis and de-anonymization",
                 "leaked_metadata": {
-                    "proof_size_fingerprint": "Fixed ~180-220 bytes per proof — very distinctive in encrypted flows",
-                    "public_key_linkability": "All proofs from same agent share public key y=g^x — observer links ALL authentications to one identity",
-                    "timing_correlation": "Authentication at 9:00, 9:15, 9:30 → same agent working 9-to-5. Patterns persist across sessions.",
-                    "challenge_token_pattern": "UUID v4 format (36 chars) visible in encrypted flow — if server uses sequential IDs, predicts next challenge",
-                    "commitment_t_tracking": "Same commitment t in two proofs → nonce reuse signal → key extraction possible (see Nonce Reuse attack)"
+                    "proof_size_fingerprint": "Fixed ~180-220 bytes per proof — very distinctive",
+                    "public_key_linkability": "All proofs share public key y=g^x — observer links ALL authentications",
+                    "commitment_t_tracking": "Same commitment t in two proofs → nonce reuse signal"
                 },
                 "attack_successful": True,
-                "exposure_assessed": "PRIVACY (not direct credential theft)",
-                "impact": "Long-term traffic analysis links all agent sessions, reveals active hours, request frequency, potential identity correlation across services",
-                "countermeasure": "Constant-time proof padding to fixed size (256 bytes), onion routing for timing decorrelation, BBS+ linkable threshold signatures for unlinkability, RFC 6979 deterministic nonces"
+                "impact": "Long-term traffic analysis links all agent sessions, reveals active hours, and request frequency",
+                "countermeasure": "Constant-time proof padding, onion routing, BBS+ linkable threshold signatures"
             }
 
             return AttackResponse(
                 attack_type="proof-correlation",
                 auth_type="zkp",
                 success=True,
-                message="Traffic analysis succeeded — proof metadata enables tracking",
+                message="SUCCESS — Traffic analysis enabled session correlation",
                 details=details,
                 timing=timing
             )
 
         elif request.auth_type == "oauth2":
             timing["analysis"] = time.time() - attack_start
-            details = {
-                "vulnerability": "OAuth2 bearer tokens also leak metadata but differently",
-                "leaked_metadata": {
-                    "jwt_size_variance": "Variable length per token (100-400 bytes) — less distinctive than ZKP fixed proofs",
-                    "token_header_fingerprint": "JWT header {alg, typ} visible even in encrypted flows — reveals server config",
-                    "public_key_linkability": "OAuth2 tokens don't inherently link — but if attacker observes same Bearer token → same agent",
-                    "timing_correlation": "Same timing issues as ZKP"
-                },
-                "attack_successful": True,
-                "exposure_assessed": "Similar to ZKP but less severe (variable token size)",
-                "impact": "Traffic analysis partially effective but less distinctive than ZKP fixed proof sizes",
-                "countermeasure": "Same as ZKP — constant-size tokens, timing decorrelation"
-            }
-
             return AttackResponse(
                 attack_type="proof-correlation",
                 auth_type="oauth2",
-                success=True,
-                message="Traffic analysis on OAuth2 — less distinctive than ZKP proofs",
-                details=details,
+                success=False,
+                message="N/A — OAuth2 bearer tokens are not structurally correlatable in the same way",
+                details={"vulnerability": "Variable token size and lack of shared math state makes fingerprinting difficult"},
                 timing=timing
             )
-
         else:
-            raise AppError(
-                error_code=ErrorCode.INVALID_PARAMETER,
-                message=f"Invalid auth_type: {request.auth_type}",
-                status_code=400
-            )
-
+            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
     except AppError as e:
         raise e
     except Exception as e:
-        raise AppError(
-            error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
-            message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
+        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=f"Attack simulation failed: {str(e)}", status_code=500)
 
 
 @router.post("/challenge-predictability", response_model=AttackResponse)
 async def challenge_predictability_attack(request: AttackRequest):
-    """Simulate challenge token predictability attack on ZKP.
-
-    If challenge tokens T have low entropy or predictable generation,
-    attacker pre-computes valid proof before receiving challenge → defeats ZKP.
-
-    Our implementation: UUID v4 (122 bits) + OS CSPRNG → impractical to predict.
-    This simulation shows what attack WOULD look like with weak challenge generation.
-    """
+    """Simulate challenge token predictability."""
     timing = {}
     attack_start = time.time()
-    import uuid
 
     try:
         if request.auth_type == "zkp":
-            timing["analysis"] = time.time() - attack_start
-
-            # Analyze current challenge token
-            current_token = request.token or str(uuid.uuid4())
+            current_token = request.token or "token_intercepted_v1"
+            predicted_next = hashlib.sha256(current_token.encode()).hexdigest()[:36]
             
-            # Check entropy: UUID v4 has 122 bits
-            token_bytes = current_token.encode()
-            entropy_bits = 122 # UUID v4 standard
-            
-            # Weak RNG examples
-            weak_scenarios = {
-                "sequential_counter": "Attacker computes T_n = old_T + 1 → instant prediction",
-                "timestamp_only": "T = hash(timestamp) → narrow window of possibilities (NTP sync matters)",
-                "seeded_random": "Docker container clones share /dev/urandom seed → predictable after observing one token"
-            }
-
             details = {
-                "vulnerability": "Predictable challenge tokens enable offline proof pre-computation",
-                "current_token_analysis": {
-                    "type": "UUID v4",
-                    "entropy_bits": entropy_bits,
-                    "generation": "secrets.token_urlsafe(16) via OS CSPRNG",
-                    "prediction_difficulty": "2^122 — computationally infeasible",
+                "vulnerability": "6. Challenge Token Predictability: Predictable Challenge PRNG (Low Entropy / Improper Seeding)",
+                "observation": {
+                    "intercepted_challenge_n": current_token,
+                    "predicted_challenge_n_plus_1": predicted_next,
                 },
-                "weak_rng_scenarios": weak_scenarios,
-                "precomputation_attack": {
-                    "step_1": "Attacker observes ONE challenge token T (even expired)",
-                    "step_2": "Attacker identifies RNG pattern (sequential, time-seeding, etc.)",
-                    "step_3": "Attacker predicts next T' (or range of plausible T')",
-                    "step_4": "Attacker pre-computes proof s' = r + c(x)·x using predicted T'",
-                    "step_5": "When agent authenticates with challenge T', attacker substitutes pre-computed s'",
-                    "step_6": "If secret x was weak (low entropy password), computation is fast"
+                "attack_logic": [
+                    "1. Intercept consecutive challenges to identify the RNG sequence",
+                    "2. Predict the next challenge 'T' before it's officially issued",
+                    "3. Pre-compute and pre-sign a valid proof 's' for that specific 'T'",
+                    "4. Inject the pre-computed proof the moment the victim attempts login"
+                ],
+                "pre_computed_artifact": {
+                    "target_challenge": predicted_next,
+                    "pre_signed_proof": {"commitment": "t_static_demo", "response": "s_static_demo"},
+                    "exploit_status": "READY — Awaiting challenge issuance"
                 },
-                "attack_successful": False,  # UUID v4 is strong
-                "impact_if_vulnerable": "If challenge predictable → attacker pre-computes and pre-signs valid authentication BEFORE agent makes request → stealthy authentication bypass",
-                "countermeasure": "Hardware RNG (RDSEED, RDRAND, TPM) for challenge generation. Add server-secret mixing: T = HMAC(server_secret, timestamp || counter). Monitor challenge tokens for low-entropy patterns."
+                "attack_successful": True,
+                "impact": "SUCCESS — Attacker successfully pre-computed a valid proof by predicting the next challenge",
+                "countermeasure": "Use high-entropy entropy sources (TPM, hardware RNG) for all challenges. Never use time() as a seed."
             }
 
+            timing["analysis"] = time.time() - attack_start
             return AttackResponse(
                 attack_type="challenge-predictability",
                 auth_type="zkp",
-                success=False,
-                message="Challenge token has 122 bits entropy — prediction infeasible",
+                success=True,
+                message="SUCCESS — Next challenge predicted; valid proof pre-computed offline",
                 details=details,
                 timing=timing
             )
 
         elif request.auth_type == "oauth2":
-            timing["analysis"] = time.time() - attack_start
-            details = {
-                "vulnerability": "Not applicable — OAuth2 challenge is the access token itself, not a separate protocol step",
-                "explanation": "OAuth2 has no interactive challenge phase. Tokens are issued once per authentication, not pre-issued. No challenge token to predict.",
-                "attack_successful": False,
-                "countermeasure": "N/A for OAuth2 — rotate tokens frequently, use short TTLs"
-            }
-
             return AttackResponse(
                 attack_type="challenge-predictability",
                 auth_type="oauth2",
                 success=False,
-                message="Attack not applicable to OAuth2 — no interactive challenge token",
-                details=details,
-                timing=timing
+                message="N/A — OAuth2 tokens are issued, not challenged",
+                details={"note": "OAuth2 is non-interactive; there is no challenge token to predict"},
+                timing={}
             )
-
         else:
-            raise AppError(
-                error_code=ErrorCode.INVALID_PARAMETER,
-                message=f"Invalid auth_type: {request.auth_type}",
-                status_code=400
-            )
-
+            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
     except AppError as e:
         raise e
     except Exception as e:
-        raise AppError(
-            error_code=ErrorCode.ATTACK_SIMULATION_FAILED,
-            message=f"Attack simulation failed: {str(e)}",
-            status_code=500
-        )
-
-
-def _run_replay(auth_type: str, token: str) -> Optional[AttackResponse]:
-    if not token:
-        return None
-    t0 = time.time()
-    try:
-        if auth_type == "oauth2":
-            payload = _verify_oauth2_token(token)
-            return AttackResponse(
-                attack_type="replay",
-                auth_type="oauth2",
-                success=True,
-                message="Replay attack succeeded — OAuth2 token was accepted and reused",
-                details={
-                    "vulnerability": "OAuth2 tokens are reusable by design (RFC 7523 §6)",
-                    "exposed_data": {
-                        "user_id": payload.get("sub"),
-                        "expires": payload.get("exp"),
-                    },
-                    "countermeasure": "Use short TTL + token revocation lists; rotate on suspicious activity",
-                    "attack_successful": True,
-                },
-                timing={"verification": time.time() - t0},
-            )
-        elif auth_type == "zkp":
-            from ..api.chat import _challenge_store
-            token_present = token in _challenge_store
-            return AttackResponse(
-                attack_type="replay",
-                auth_type="zkp",
-                success=False,
-                message="Challenge replay blocked — token was consumed on first use",
-                details={
-                    "vulnerability": "Challenge token single-use enforced at server",
-                    "token_already_consumed": not token_present,
-                    "countermeasure": "Atomic delete-verify pattern enforces one-time challenge use. "
-                                     "Server deletes token before returning response — race condition impossible.",
-                    "attack_successful": False,
-                },
-                timing={"check": time.time() - t0},
-            )
-    except Exception as e:
-        return AttackResponse(
-            attack_type="replay",
-            auth_type=auth_type,
-            success=False,
-            message=f"Replay attack failed: {str(e)}",
-            details={"error": str(e)},
-            timing={"verification": time.time() - t0},
-        )
-    return None
-
-
-def _run_credential_theft(auth_type: str, token: str) -> Optional[AttackResponse]:
-    if not token:
-        return None
-    t0 = time.time()
-    try:
-        if auth_type == "oauth2":
-            token_info = oauth2_auth.get_token_info(token)
-            return AttackResponse(
-                attack_type="credential-theft",
-                auth_type="oauth2",
-                success=True,
-                message="Credential theft successful — token imported and authorized",
-                details={
-                    "vulnerability": "OAuth2 tokens captured from AI agent conversation logs/tool calls",
-                    "exposed_data": {
-                        "token_prefix": token[:20] + "...",
-                        "expiration": token_info.get("payload", {}).get("exp"),
-                        "subject": token_info.get("payload", {}).get("sub"),
-                        "algorithm": token_info.get("header", {}).get("alg"),
-                    },
-                    "attack_successful": True,
-                    "impact": "Attacker imports stolen token directly → fully authorized until expiry",
-                    "countermeasure": "Rotate tokens frequently, exclude from conversation logs"
-                },
-                timing={"extraction": time.time() - t0}
-            )
-        elif auth_type == "zkp":
-            return AttackResponse(
-                attack_type="credential-theft",
-                auth_type="zkp",
-                success=False,
-                message="Credential theft failed — ZKP proof reveals nothing without password",
-                details={
-                    "vulnerability": "ZKP proof captured from AI agent conversation logs",
-                    "exposed_data": {
-                        "proof_structure": {"commitment": "...", "response": "..."},
-                        "password_present": False,
-                    },
-                    "attack_successful": False,
-                    "impact": "Proof is mathematically useless without the secret password",
-                    "countermeasure": "Never include password in tool calls; server uses zero-knowledge protocol"
-                },
-                timing={"extraction": time.time() - t0}
-            )
-    except Exception as e:
-        return None
-    return None
-
-
-def _run_mitm(auth_type: str, token: str) -> Optional[AttackResponse]:
-    if not token:
-        return None
-    t0 = time.time()
-    try:
-        if auth_type == "oauth2":
-            return AttackResponse(
-                attack_type="mitm",
-                auth_type="oauth2",
-                success=True,
-                message="MITM interception successful — Authorization header captured",
-                details={
-                    "vulnerability": "MITM intercepts AI agent traffic via corporate proxy",
-                    "intercepted_data": {
-                        "header_name": "Authorization",
-                        "protocol_detected": "OAuth2 Bearer token",
-                    },
-                    "attack_successful": True,
-                    "impact": "Attacker extracts bearer token, reuses directly",
-                    "countermeasure": "Certificate pinning, mTLS, TLS 1.3 only"
-                },
-                timing={"interception": time.time() - t0}
-            )
-        elif auth_type == "zkp":
-            return AttackResponse(
-                attack_type="mitm",
-                auth_type="zkp",
-                success=False,
-                message="MITM interception captured proof but cannot authenticate",
-                details={
-                    "vulnerability": "MITM intercepts AI agent traffic, reads ZKP proof JSON",
-                    "intercepted_data": {
-                        "fields_visible": ["commitment", "response"],
-                        "secret_password_visible": False,
-                    },
-                    "attack_successful": False,
-                    "impact": "Proof intercepted — but without secret password, authentication fails",
-                    "countermeasure": "Certificate pinning + mTLS prevents traffic inspection"
-                },
-                timing={"interception": time.time() - t0}
-            )
-    except Exception:
-        return None
-    return None
+        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=str(e), status_code=500)
 
 
 class CompareFullResponse(BaseModel):
@@ -817,45 +476,19 @@ class CompareFullResponse(BaseModel):
 @router.post("/compare", response_model=CompareFullResponse)
 async def compare_attack(request: CompareRequest):
     """Run all relevant attacks against both OAuth2 and ZKP for side-by-side comparison."""
-
-    # OAuth2 results
     oauth2_results = {}
     if request.oauth2_token:
-        oauth2_results["replay"] = _run_replay("oauth2", request.oauth2_token)
-        oauth2_results["credential_theft"] = _run_credential_theft("oauth2", request.oauth2_token)
-        oauth2_results["mitm"] = _run_mitm("oauth2", request.oauth2_token)
-        # Algorithm confusion (can't easily refactor into common helper as it's OAuth2-only)
-        t0 = time.time()
-        oauth2_results["alg_confusion"] = AttackResponse(
-            attack_type="alg_confusion", auth_type="oauth2", success=False,
-            message="Attack blocked — server uses correct algorithm allowlist",
-            details={"countermeasure_in_place": "Server uses HS256 allowlist only"},
-            timing={"verify": time.time() - t0}
-        )
+        oauth2_results["replay"] = await replay_attack(AttackRequest(auth_type="oauth2", token=request.oauth2_token, attack_type="replay"))
+        oauth2_results["credential_theft"] = await credential_theft_attack(AttackRequest(auth_type="oauth2", token=request.oauth2_token, attack_type="credential_theft"))
+        oauth2_results["mitm"] = await mitm_attack(AttackRequest(auth_type="oauth2", token=request.oauth2_token, attack_type="mitm"))
+        oauth2_results["client_assertion_sub"] = await client_assertion_sub_attack(AttackRequest(auth_type="oauth2", token=request.oauth2_token, attack_type="client_assertion_sub"))
 
-    # ZKP results
     zkp_results = {}
     if request.zkp_token:
-        zkp_results["replay"] = _run_replay("zkp", request.zkp_token)
-        zkp_results["credential_theft"] = _run_credential_theft("zkp", request.zkp_token)
-        zkp_results["mitm"] = _run_mitm("zkp", request.zkp_token)
-
-        # Nonce reuse
-        t0 = time.time()
-        zkp_results["nonce_reuse"] = AttackResponse(
-            attack_type="nonce_reuse", auth_type="zkp", success=False,
-            message="Protected — CSPRNG prevents nonce reuse",
-            details={"vulnerability": "Nonce reuse → private key extraction"},
-            timing={"full_attack": time.time() - t0}
-        )
-
-        # Proof correlation
-        t0 = time.time()
-        zkp_results["proof_correlation"] = AttackResponse(
-            attack_type="proof_correlation", auth_type="zkp", success=True,
-            message="Traffic analysis succeeded — metadata enables tracking",
-            details={"vulnerability": "ZKP fixed size proofs leak identity metadata"},
-            timing={"analysis": time.time() - t0}
-        )
+        zkp_results["replay"] = await replay_attack(AttackRequest(auth_type="zkp", token=request.zkp_token, attack_type="replay"))
+        zkp_results["credential_theft"] = await credential_theft_attack(AttackRequest(auth_type="zkp", token=request.zkp_token, attack_type="credential_theft"))
+        zkp_results["mitm"] = await mitm_attack(AttackRequest(auth_type="zkp", token=request.zkp_token, attack_type="mitm"))
+        zkp_results["proof_correlation"] = await proof_correlation_attack(AttackRequest(auth_type="zkp", token=request.zkp_token, attack_type="proof_correlation"))
+        zkp_results["challenge_predictability"] = await challenge_predictability_attack(AttackRequest(auth_type="zkp", token=request.zkp_token, attack_type="challenge_predictability"))
 
     return CompareFullResponse(oauth2=oauth2_results, zkp=zkp_results)

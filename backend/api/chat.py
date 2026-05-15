@@ -10,6 +10,7 @@ from ..agents.intent import intent_extractor, tool_caller
 from ..auth.oauth2 import oauth2_auth
 from ..auth.zkp import zkp_auth
 from ..utils.errors import AppError, ErrorCode
+from ..utils.config import settings
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -98,6 +99,19 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
 
     # Step 2: Authenticate based on agent.auth_type
     auth_start = time.time()
+
+    # SIMULATE VULNERABLE LOGGING: Capture all headers including secrets
+    if http_request:
+        settings.log_buffer.append({
+            "timestamp": time.time(),
+            "path": "/api/chat/intent",
+            "headers": dict(http_request.headers),
+            "body_summary": f"agent_id={request.agent_id}"
+        })
+        # Keep buffer small
+        if len(settings.log_buffer) > 20:
+            settings.log_buffer.pop(0)
+
     if agent.auth_type == "oauth2":
         # OAuth2 PKJWT: verify incoming Bearer token from Authorization header
         auth_header = http_request.headers.get("Authorization", "") if http_request else ""
@@ -112,7 +126,7 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
         token_info = oauth2_auth.get_token_info(bearer_token)
         auth_info = {
             "type": "oauth2",
-            "token": bearer_token[:20] + "..." if len(bearer_token) > 20 else bearer_token,
+            "token": bearer_token,
             "token_info": token_info,
             "verification_time": payload.get("verification_time", 0),
             "token_size": len(bearer_token),
