@@ -1,17 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useChatHistory } from "../context/ChatHistoryContext.jsx";
 import { attackApi } from "../services/attackApi.js";
+import { signWithFixedNonce, generatePrivateKey } from "../lib/zkp.js";
 
 const ATTACK_TYPES = [
-  { key: "compare",      label: "Side-by-Side",     auth: "both",   desc: "Comprehensive attack simulation on both OAuth2 & ZKP" },
-  { key: "replay",       label: "Token Replay",      auth: "both",   desc: "Reuse captured bearer token or ZKP proof" },
-  { key: "credential-theft", label: "Credential Theft", auth: "both", desc: "Credentials stolen from AI agent conversation logs" },
-  { key: "mitm",         label: "MITM Intercept",    auth: "both",   desc: "Intercept credentials in transit via TLS downgrade" },
-  { key: "alg-confuse",  label: "Algorithm Confusion", auth: "oauth2", desc: "Flip RS256→HS256, forge with public key" },
-  { key: "client-assertion-sub", label: "Assertion Substitution", auth: "oauth2", desc: "Forge assertions impersonating another agent" },
-  { key: "nonce-reuse",  label: "Nonce Reuse",       auth: "zkp",    desc: "Two proofs same r → extract private key" },
-  { key: "proof-correlation", label: "Proof Correlation", auth: "zkp", desc: "Traffic analysis reveals identity patterns" },
-  { key: "challenge-predictability", label: "Challenge Predictability", auth: "zkp", desc: "Predict challenge to pre-compute proof" },
+  { key: "credential-theft", label: "1. Credential Theft via Context/Logs", auth: "both", desc: "Credentials stolen from AI agent conversation logs or context" },
+  { key: "mitm",             label: "2. MITM / TLS Downgrade",           auth: "both", desc: "Intercept credentials in transit via TLS downgrade or proxy" },
+  { key: "replay",           label: "3. Token Replay / Long-Lived Token", auth: "oauth2", desc: "Reuse captured bearer token until expiry" },
+  { key: "client-assertion-sub", label: "4. Client Assertion Substitution", auth: "oauth2", desc: "Forge assertions impersonating another agent" },
+  { key: "proof-correlation", label: "5. Proof Correlation / Fingerprinting", auth: "zkp", desc: "Traffic analysis reveals identity patterns via ZKP metadata" },
+  { key: "challenge-predictability", label: "6. Challenge Token Predictability", auth: "zkp", desc: "Predict server challenge to pre-compute valid proof" },
 ]
 
 /* ─── Status LED pulsing pixel ─── */
@@ -23,7 +21,7 @@ function StatusLED({ status }) {
       height: "6px",
       borderRadius: "50%",
       background: color,
-      boxShadow: `0 0 6px ${color}`,
+      boxShadow: `0 0 8px ${color}`,
       display: "inline-block",
       marginRight: "10px",
       verticalAlign: "middle"
@@ -48,25 +46,26 @@ function Oscilloscope() {
 
   return (
     <div className="oscilloscope" style={{ 
-      fontFamily: "'IBM Plex Mono', monospace", 
+      fontFamily: "var(--font-mono)", 
       fontSize: "10px", 
       color: "var(--terminal-secure)",
-      opacity: 0.4,
-      padding: "12px",
-      border: "1px solid rgba(52, 211, 153, 0.2)",
-      background: "rgba(0,0,0,0.3)",
-      height: "140px",
+      opacity: 0.5,
+      padding: "16px",
+      border: "1px solid rgba(52, 211, 153, 0.1)",
+      background: "rgba(0,0,0,0.5)",
+      height: "160px",
       overflow: "hidden",
       display: "flex",
       flexDirection: "column",
       justifyContent: "flex-end",
-      marginBottom: "16px"
+      marginBottom: "20px",
+      borderRadius: "4px"
     }}>
-      <div style={{ fontSize: "9px", marginBottom: "8px", borderBottom: "1px solid rgba(52, 211, 153, 0.1)", paddingBottom: "4px" }}>
+      <div style={{ fontSize: "9px", marginBottom: "12px", borderBottom: "1px solid rgba(52, 211, 153, 0.1)", paddingBottom: "6px", letterSpacing: "1px", fontWeight: 700 }}>
         [LIVE_INTERCEPT_STREAM]
       </div>
       {chunks.map((chunk, i) => (
-        <div key={i} style={{ whiteSpace: "nowrap" }}>
+        <div key={i} style={{ whiteSpace: "nowrap", opacity: (i + 1) / 10 }}>
           {`> ${chunk}`}
         </div>
       ))}
@@ -83,52 +82,95 @@ function ForensicsReadout({ result }) {
                  result.details?.leaked_metadata || 
                  result.details?.intercepted_data || 
                  result.details?.server_validation ||
-                 result.details?.math;
+                 result.details?.math ||
+                 result.details?.mathematical_proof ||
+                 result.details?.stolen_identity;
+  
+  const exfiltrated = result.details?.exfiltrated_data;
   const mitigation = result.details?.countermeasure || result.details?.countermeasure_in_place;
+  const exposedPrivateKey = result.details?.exposed_private_key;
 
   const status = result.success ? "vulnerable" : "protected";
 
   return (
     <div style={{ 
       border: "1px solid var(--terminal-border)",
-      background: "rgba(255,255,255,0.01)",
+      background: "rgba(255,255,255,0.02)",
       display: "flex",
       flexDirection: "column",
       fontSize: "11px",
-      marginBottom: "12px"
+      marginBottom: "16px",
+      borderRadius: "4px"
     }}>
       <div style={{ 
-        background: result.success ? "rgba(248,113,113,0.1)" : "rgba(52,211,153,0.1)",
-        padding: "6px 10px",
+        background: result.success ? "rgba(248,113,113,0.08)" : "rgba(52,211,153,0.08)",
+        padding: "8px 12px",
         borderBottom: "1px solid var(--terminal-border)",
-        fontWeight: "bold",
+        fontWeight: 800,
         display: "flex",
         justifyContent: "space-between",
         color: result.success ? "var(--terminal-accent)" : "var(--terminal-secure)",
-        textTransform: "uppercase"
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
       }}>
-        <span><StatusLED status={status} />Analysis Trace</span>
-        <span>{result.success ? "● [VULNERABLE]" : "◆ [PROTECTED]"}</span>
+        <span><StatusLED status={status} />Forensic Trace</span>
+        <span>{result.success ? "[VULNERABLE]" : "[SECURE]"}</span>
       </div>
 
-      <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        {exposedPrivateKey && (
+          <div style={{ 
+            padding: "16px", 
+            background: "rgba(220, 38, 38, 0.05)", 
+            border: "1px solid var(--terminal-accent)",
+            borderRadius: "4px"
+          }}>
+            <div style={{ color: "var(--terminal-accent)", fontWeight: 900, fontSize: "14px", marginBottom: "10px", textAlign: "center", letterSpacing: "1px" }}>
+              !!! CRITICAL_IDENTITY_LEAK !!!
+            </div>
+            <pre style={{ 
+              margin: 0, 
+              padding: "12px", 
+              background: "#000", 
+              color: "#ff4444", 
+              fontSize: "10px", 
+              wordBreak: "break-all",
+              whiteSpace: "pre-wrap",
+              border: "1px solid rgba(220, 38, 38, 0.2)",
+              fontFamily: "var(--font-mono)"
+            }}>
+              {exposedPrivateKey}
+            </pre>
+          </div>
+        )}
+
+        {exfiltrated && (
+          <div>
+            <div style={{ color: "var(--terminal-accent)", fontWeight: 800, fontSize: "9px", marginBottom: "6px", textTransform: "uppercase" }}>[BUFFER_EXFILTRATION]</div>
+            <pre style={{ margin: 0, fontSize: "10px", color: "var(--terminal-text)", opacity: 0.8, fontFamily: "var(--font-mono)" }}>
+              {JSON.stringify(exfiltrated, null, 2)}
+            </pre>
+          </div>
+        )}
+
         <div>
-          <div style={{ color: "var(--terminal-muted)", marginBottom: "2px", fontWeight: "bold" }}>[VULNERABILITY]</div>
-          <div style={{ color: "var(--terminal-text)" }}>{vulnerability}</div>
+          <div style={{ color: "var(--terminal-muted)", marginBottom: "4px", fontWeight: 800, fontSize: "9px", textTransform: "uppercase" }}>[VULNERABILITY_ID]</div>
+          <div style={{ color: "var(--terminal-text)", fontSize: "12px" }}>{vulnerability}</div>
         </div>
 
         {payload && (
           <div>
-            <div style={{ color: "var(--terminal-muted)", marginBottom: "2px", fontWeight: "bold" }}>[PAYLOAD]</div>
+            <div style={{ color: "var(--terminal-muted)", marginBottom: "4px", fontWeight: 800, fontSize: "9px", textTransform: "uppercase" }}>[NETWORK_CAPTURE]</div>
             <pre style={{ 
               margin: 0, 
-              padding: "8px", 
-              background: "rgba(0,0,0,0.5)", 
+              padding: "10px", 
+              background: "rgba(0,0,0,0.3)", 
               border: "1px solid var(--terminal-border)",
-              color: "var(--terminal-accent)",
+              color: "var(--terminal-secure)",
               overflowX: "auto",
               fontSize: "10px",
-              fontFamily: "'IBM Plex Mono', monospace"
+              fontFamily: "var(--font-mono)",
+              borderRadius: "2px"
             }}>
               {JSON.stringify(payload, null, 2)}
             </pre>
@@ -136,9 +178,9 @@ function ForensicsReadout({ result }) {
         )}
 
         {mitigation && (
-          <div>
-            <div style={{ color: "var(--terminal-muted)", marginBottom: "2px", fontWeight: "bold" }}>[MITIGATION]</div>
-            <div style={{ color: "var(--terminal-secure)" }}>{mitigation}</div>
+          <div style={{ borderTop: "1px solid var(--terminal-border)", paddingTop: "12px" }}>
+            <div style={{ color: "var(--terminal-secure)", marginBottom: "4px", fontWeight: 800, fontSize: "9px", textTransform: "uppercase" }}>[REMEDIATION_PROTOCOL]</div>
+            <div style={{ color: "var(--terminal-secure)", fontSize: "11px", opacity: 0.9 }}>{mitigation}</div>
           </div>
         )}
       </div>
@@ -161,19 +203,20 @@ function ExecutionLog({ steps }) {
       className="execution-log" 
       ref={scrollRef}
       style={{
-        height: "160px",
+        height: "180px",
         overflowY: "auto",
         background: "var(--terminal-bg)",
         border: "1px solid var(--terminal-border)",
-        padding: "12px",
+        padding: "16px",
         display: "flex",
         flexDirection: "column",
-        gap: "4px",
-        fontFamily: "'IBM Plex Mono', monospace"
+        gap: "6px",
+        fontFamily: "var(--font-mono)",
+        borderRadius: "4px"
       }}
     >
       {steps.map((step, i) => (
-        <div key={i} style={{ fontSize: "11px", display: "flex", gap: "8px" }}>
+        <div key={i} style={{ fontSize: "11px", display: "flex", gap: "10px" }}>
           <span style={{ color: step.success ? "var(--terminal-secure)" : step.success === false ? "var(--terminal-accent)" : "var(--terminal-muted)" }}>
             {">"}
           </span>
@@ -190,95 +233,79 @@ function ExecutionLog({ steps }) {
 
 /* ─── Side-by-side OAuth2 vs ZKP comparison card ─── */
 function CompareCard({ oauth2Results, zkpResults }) {
-  // We'll show a summary status (vulnerable if any attack succeeds)
-  const oauth2Vulnerable = oauth2Results && Object.values(oauth2Results).some(r => r.success)
-  const zkpVulnerable    = zkpResults && Object.values(zkpResults).some(r => r.success)
-
-  const oauth2Status = oauth2Vulnerable ? "vulnerable" : "protected";
-  const zkpStatus    = zkpVulnerable ? "vulnerable" : "protected";
+  const oauth2Vulnerable = oauth2Results && Object.values(oauth2Results).some(r => r?.success)
+  const zkpVulnerable    = zkpResults && Object.values(zkpResults).some(r => r?.success)
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      {/* Header summary badge row */}
-      <div style={{ display: "flex", gap: "0", border: "1px solid var(--terminal-border)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ display: "flex", gap: "0", border: "1px solid var(--terminal-border)", borderRadius: "4px", overflow: "hidden" }}>
         <div
           style={{
             flex: 1,
-            padding: "10px 16px",
+            padding: "12px 20px",
             borderRight: "1px solid var(--terminal-border)",
-            background: oauth2Vulnerable ? "rgba(248,113,113,0.05)" : "rgba(52,211,153,0.05)",
+            background: oauth2Vulnerable ? "rgba(248,113,113,0.03)" : "rgba(52,211,153,0.03)",
           }}
         >
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--terminal-muted)", marginBottom: "2px", textTransform: "uppercase" }}>
-            [OAUTH2_CHANNEL]
+          <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>
+            [OAUTH2_SUBSYSTEM]
           </div>
-          <div style={{ fontSize: "14px", fontWeight: 800, color: oauth2Vulnerable ? "var(--terminal-accent)" : "var(--terminal-secure)", display: "flex", alignItems: "center" }}>
+          <div style={{ fontSize: "16px", fontWeight: 900, color: oauth2Vulnerable ? "var(--terminal-accent)" : "var(--terminal-secure)", display: "flex", alignItems: "center" }}>
             {oauth2Results ? (
               <>
-                <StatusLED status={oauth2Status} />
-                {oauth2Vulnerable ? "● VULNERABLE" : "◆ PROTECTED"}
+                <StatusLED status={oauth2Vulnerable ? "vulnerable" : "protected"} />
+                {oauth2Vulnerable ? "VULNERABLE" : "SECURE"}
               </>
-            ) : "NOT TESTED"}
+            ) : "OFFLINE"}
           </div>
         </div>
 
         <div
           style={{
             flex: 1,
-            padding: "10px 16px",
-            background: zkpVulnerable ? "rgba(248,113,113,0.05)" : "rgba(52,211,153,0.05)",
+            padding: "12px 20px",
+            background: zkpVulnerable ? "rgba(248,113,113,0.03)" : "rgba(52,211,153,0.03)",
           }}
         >
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--terminal-muted)", marginBottom: "2px", textTransform: "uppercase" }}>
-            [ZKP_CHANNEL]
+          <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>
+            [ZKP_SUBSYSTEM]
           </div>
-          <div style={{ fontSize: "14px", fontWeight: 800, color: zkpVulnerable ? "var(--terminal-accent)" : "var(--terminal-secure)", display: "flex", alignItems: "center" }}>
+          <div style={{ fontSize: "16px", fontWeight: 900, color: zkpVulnerable ? "var(--terminal-accent)" : "var(--terminal-secure)", display: "flex", alignItems: "center" }}>
             {zkpResults ? (
               <>
-                <StatusLED status={zkpStatus} />
-                {zkpVulnerable ? "● VULNERABLE" : "◆ PROTECTED"}
+                <StatusLED status={zkpVulnerable ? "vulnerable" : "protected"} />
+                {zkpVulnerable ? "VULNERABLE" : "SECURE"}
               </>
-            ) : "NOT TESTED"}
+            ) : "OFFLINE"}
           </div>
         </div>
       </div>
 
-      {/* Comparison Detail List */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-        {/* OAuth2 column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {oauth2Results ? (
-            Object.entries(oauth2Results).map(([key, result]) => (
+            Object.entries(oauth2Results).map(([key, result]) => result && (
               <div key={key}>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--terminal-muted)", marginBottom: "4px", textTransform: "uppercase" }}>
+                <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "6px", textTransform: "uppercase" }}>
                   {key.replace(/_/g, " ")}
                 </div>
                 <ForensicsReadout result={result} />
               </div>
             ))
-          ) : (
-            <div style={{ padding: "16px", borderRadius: "0px", border: "1px solid var(--terminal-border)", textAlign: "center", color: "var(--terminal-muted)", fontSize: "11px" }}>
-              Awaiting OAuth2 data...
-            </div>
-          )}
+          ) : null}
         </div>
 
-        {/* ZKP column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {zkpResults ? (
-            Object.entries(zkpResults).map(([key, result]) => (
+            Object.entries(zkpResults).map(([key, result]) => result && (
               <div key={key}>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--terminal-muted)", marginBottom: "4px", textTransform: "uppercase" }}>
+                <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "6px", textTransform: "uppercase" }}>
                   {key.replace(/_/g, " ")}
                 </div>
                 <ForensicsReadout result={result} />
               </div>
             ))
-          ) : (
-            <div style={{ padding: "16px", borderRadius: "0px", border: "1px solid var(--terminal-border)", textAlign: "center", color: "var(--terminal-muted)", fontSize: "11px" }}>
-              Awaiting ZKP data...
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -289,7 +316,8 @@ function CompareCard({ oauth2Results, zkpResults }) {
 export default function AttackPanel() {
   const { latestResult, resultsByAuth } = useChatHistory()
 
-  const [attackType, setAttackType]     = useState("compare")
+  const [attackType, setAttackType]     = useState("replay")
+  const [analysisMode, setAnalysisMode] = useState("single")
   const [attackPhase, setAttackPhase]   = useState("idle")
   const [attackSteps, setAttackSteps]   = useState([])
   const [attackResult, setAttackResult] = useState(null)
@@ -297,24 +325,13 @@ export default function AttackPanel() {
   const [errorFlash, setErrorFlash] = useState(false)
 
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 900 : false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const listboxRef = useRef(null)
 
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 900
-      setIsMobile(mobile)
-      if (!mobile) setMobileMenuOpen(false)
-    }
+    const handleResize = () => setIsMobile(window.innerWidth < 900)
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
   }, [])
-
-  useEffect(() => {
-    if (!isMobile && listboxRef.current) {
-      listboxRef.current.focus()
-    }
-  }, [isMobile])
 
   const authInfo = latestResult?.auth_info
   const authType = authInfo?.type || "oauth2"
@@ -323,14 +340,14 @@ export default function AttackPanel() {
     : authInfo?.type === "zkp"
       ? authInfo.proof
       : null
+  const agentId = authInfo?.agent_id
 
-  // Tokens from both auth types (for compare mode)
   const oauth2Token = resultsByAuth?.oauth2?.auth_info?.token
   const zkpToken    = resultsByAuth?.zkp?.auth_info?.proof
   const oauth2HasToken = !!oauth2Token
   const zkpHasToken    = !!zkpToken
   const hasEitherToken = oauth2HasToken || zkpHasToken
-  const hasToken        = !!token  // current tab token (for single-mode attacks)
+  const hasToken        = !!token
 
   const resetPanels = useCallback(() => {
     setAttackPhase("idle")
@@ -344,48 +361,45 @@ export default function AttackPanel() {
     setAttackPhase("scanning")
     setAttackResult(null)
     setAttackSteps([])
-    setAttackSteps([{ label: "Scanning network traffic", detail: "Intercepting token...", success: true }])
-    await new Promise(r => setTimeout(r, 500))
+    setAttackSteps([{ label: "SCANNING_TRAFFIC", detail: "Sniffing auth channel...", success: true }])
+    await new Promise(r => setTimeout(r, 600))
     setAttackPhase("exploiting")
-    setAttackSteps(prev => [...prev, { label: "Launching exploit", detail: `${ATTACK_TYPES.find(a => a.key === attackType)?.label} on ${authType}`, success: true }])
-    await new Promise(r => setTimeout(r, 500))
+    setAttackSteps(prev => [...prev, { label: "INJECTING_EXPLOIT", detail: `${ATTACK_TYPES.find(a => a.key === attackType)?.label}`, success: true }])
+    await new Promise(r => setTimeout(r, 800))
 
     try {
+      let attackResp;
+      
       const apiFn = {
         "replay":                   attackApi.replay,
         "credential-theft":         attackApi.credentialTheft,
         "mitm":                     attackApi.mitm,
-        "alg-confuse":              attackApi.algorithmConfusion,
         "client-assertion-sub":    attackApi.clientAssertionSub,
-        "nonce-reuse":              attackApi.nonceReuse,
         "proof-correlation":        attackApi.proofCorrelation,
         "challenge-predictability": attackApi.challengePredictability,
       }[attackType]
       const type = ATTACK_TYPES.find(a => a.key === attackType)?.auth || authType
       const targetAuthType = type === "both" ? authType : type
-      const attackResp = await apiFn(targetAuthType, token)
+      attackResp = await apiFn(targetAuthType, token, agentId)
 
       setAttackPhase("extracting")
-      await new Promise(r => setTimeout(r, 400))
+      await new Promise(r => setTimeout(r, 500))
       setAttackSteps(prev => [...prev, {
-        label: attackResp.success ? "DATA EXPOSED" : "Attack blocked",
+        label: attackResp.success ? "EXPLOIT_SUCCESS" : "EXPLOIT_BLOCKED",
         detail: attackResp.message,
         success: attackResp.success,
-        expandable: !attackResp.success,
-        payload: attackResp.details,
       }])
       setAttackResult(attackResp)
       setAttackPhase("done")
     } catch (err) {
       setErrorFlash(true)
       setTimeout(() => setErrorFlash(false), 500)
-      setAttackSteps(prev => [...prev, { label: "Attack error", detail: err.message, success: null }])
+      setAttackSteps(prev => [...prev, { label: "INTERNAL_ERROR", detail: err.message, success: false }])
       setAttackPhase("done")
     }
-  }, [attackType, authType, token, hasToken])
+  }, [attackType, authType, token, agentId, hasToken])
 
   const executeCompareAttack = useCallback(async () => {
-    // Read tokens from current component scope — no stale closure
     const oauth2 = resultsByAuth?.oauth2?.auth_info?.token || null
     const zkp    = resultsByAuth?.zkp?.auth_info?.proof    || null
     if (!oauth2 && !zkp) return
@@ -393,431 +407,205 @@ export default function AttackPanel() {
     setAttackPhase("scanning")
     setCompareResult(null)
     setAttackSteps([])
-    setAttackSteps([{ label: "Scanning both auth channels", detail: "Collecting OAuth2 + ZKP tokens...", success: true }])
-    await new Promise(r => setTimeout(r, 400))
+    setAttackSteps([{ label: "DUAL_CHANNEL_LOCK", detail: "Intercepting OAuth2 & ZKP...", success: true }])
+    await new Promise(r => setTimeout(r, 600))
     setAttackPhase("exploiting")
     setAttackSteps(prev => [...prev, {
-      label: "Running comprehensive comparison",
-      detail: `OAuth2 ${oauth2 ? "✓" : "✗"}  ZKP ${zkp ? "✓" : "✗"}`,
+      label: "BATCH_VULNERABILITY_TEST",
+      detail: "Mass testing across captured tokens...",
       success: true,
     }])
-    await new Promise(r => setTimeout(r, 800))
+    await new Promise(r => setTimeout(r, 1000))
 
     try {
       const resp = await attackApi.compare(oauth2, zkp)
       setAttackPhase("extracting")
-      await new Promise(r => setTimeout(r, 300))
+      await new Promise(r => setTimeout(r, 400))
       setCompareResult(resp.data)
       setAttackPhase("done")
     } catch (err) {
       setErrorFlash(true)
       setTimeout(() => setErrorFlash(false), 500)
-      setAttackSteps(prev => [...prev, { label: "Attack error", detail: err.message, success: null }])
+      setAttackSteps(prev => [...prev, { label: "ANALYSIS_FAILED", detail: err.message, success: false }])
       setAttackPhase("done")
     }
   }, [resultsByAuth])
 
   const handleExecute = useCallback(() => {
     resetPanels()
-    setMobileMenuOpen(false)
-    if (attackType === "compare") {
+    if (analysisMode === "compare") {
       executeCompareAttack()
     } else {
       executeSingleAttack()
     }
-  }, [attackType, executeSingleAttack, executeCompareAttack, resetPanels])
+  }, [analysisMode, executeSingleAttack, executeCompareAttack, resetPanels])
 
   const handleKeyDown = (e) => {
     if (attackPhase !== "idle" && attackPhase !== "done") return
-
     const currentIndex = ATTACK_TYPES.findIndex(a => a.key === attackType)
     let nextIndex = currentIndex
-
     if (e.key === "ArrowDown") {
-      e.preventDefault()
-      nextIndex = (currentIndex + 1) % ATTACK_TYPES.length
+      e.preventDefault(); nextIndex = (currentIndex + 1) % ATTACK_TYPES.length;
     } else if (e.key === "ArrowUp") {
-      e.preventDefault()
-      nextIndex = (currentIndex - 1 + ATTACK_TYPES.length) % ATTACK_TYPES.length
+      e.preventDefault(); nextIndex = (currentIndex - 1 + ATTACK_TYPES.length) % ATTACK_TYPES.length;
     } else if (e.key === "Enter") {
-      e.preventDefault()
-      handleExecute()
-      return
-    } else {
-      return
-    }
-
-    setAttackType(ATTACK_TYPES[nextIndex].key)
-    resetPanels()
+      e.preventDefault(); handleExecute(); return;
+    } else return;
+    setAttackType(ATTACK_TYPES[nextIndex].key); resetPanels();
   }
 
-  const canExecute = attackType === "compare" ? hasEitherToken : hasToken
+  const canExecute = analysisMode === "compare" ? hasEitherToken : hasToken
 
   return (
     <div className="attack-terminal-root">
       <style>{`
         .attack-terminal-root {
-          --terminal-bg: #0a0a0b;
-          --terminal-border: #1e1e22;
-          --terminal-accent: #f87171;
-          --terminal-secure: #34d399;
-          --terminal-text: #e5e7eb;
-          --terminal-muted: #4b5563;
-
+          --terminal-bg: #09090b;
+          --terminal-border: #18181b;
+          --terminal-accent: #ef4444;
+          --terminal-secure: #10b981;
+          --terminal-text: #f4f4f5;
+          --terminal-muted: #52525b;
           display: grid;
           grid-template-columns: 320px 1fr;
-          height: calc(100vh - var(--navbar-height));
+          height: calc(100dvh - var(--navbar-height));
           background: var(--terminal-bg);
           color: var(--terminal-text);
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 13px;
+          font-family: var(--font-mono);
+          font-size: 12px;
           overflow: hidden;
           position: relative;
         }
-
-        /* ─── Scanline Overlay ─── */
         .attack-terminal-root::after {
-          content: " ";
-          display: block;
-          position: absolute;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          right: 0;
-          background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
-                      linear-gradient(90deg, rgba(255, 0, 0, 0.01), rgba(0, 255, 0, 0.005), rgba(0, 0, 255, 0.01));
-          z-index: 1000;
-          background-size: 100% 4px, 3px 100%;
-          pointer-events: none;
+          content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+          background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), 
+                      linear-gradient(90deg, rgba(255, 0, 0, 0.005), rgba(0, 255, 0, 0.002), rgba(0, 0, 255, 0.005));
+          z-index: 1000; background-size: 100% 4px, 3px 100%; pointer-events: none;
         }
-
         .mission-control {
-          border-right: 1px solid var(--terminal-border);
-          padding: 20px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-          background: #0d0d0f;
+          border-right: 1px solid var(--terminal-border); padding: 24px;
+          overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: #0c0c0e;
         }
-
         .data-stream {
-          padding: 20px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          border: 1px solid transparent;
-          transition: border-color 0.2s ease;
+          padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+          border: 1px solid transparent; transition: border-color 0.2s ease;
         }
-
-        /* ─── ERROR Flash Animation ─── */
         @keyframes border-flash {
-          0% { border-color: var(--terminal-accent); box-shadow: inset 0 0 20px rgba(248, 113, 113, 0.2); }
+          0% { border-color: var(--terminal-accent); box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.1); }
           100% { border-color: transparent; box-shadow: none; }
         }
-
-        .error-flash {
-          animation: border-flash 0.5s ease-out;
-        }
-
-        /* ─── LED Pulse Animation ─── */
-        @keyframes led-pulse {
-          0% { opacity: 0.4; transform: scale(0.9); }
-          50% { opacity: 1; transform: scale(1.1); }
-          100% { opacity: 0.4; transform: scale(0.9); }
-        }
-        .status-led {
-          animation: led-pulse 1.5s infinite ease-in-out;
-        }
-
-        @media (max-width: 899px) {
-          .attack-terminal-root {
-            grid-template-columns: 1fr;
-            height: auto;
-            overflow-y: auto;
-          }
-          .mission-control {
-            border-right: none;
-            border-bottom: 1px solid var(--terminal-border);
-            position: sticky;
-            top: 0;
-            background: var(--terminal-bg);
-            z-index: 100;
-            padding: 12px 20px;
-            gap: 12px;
-          }
-          .hide-on-mobile {
-            display: none !important;
-          }
-        }
-
-        .attack-listbox {
-          display: flex;
-          flex-direction: column;
-          border: 1px solid var(--terminal-border);
-          background: rgba(0, 0, 0, 0.4);
-          outline: none;
-          transition: border-color 0.2s ease;
-        }
-
-        .attack-listbox:focus {
-          border-color: rgba(248, 113, 113, 0.5);
-        }
-
-        .attack-item {
-          padding: 10px 12px;
-          cursor: pointer;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border: none;
-          background: transparent;
-          color: var(--terminal-text);
-          font-family: inherit;
-          font-size: 11px;
-          text-align: left;
-          transition: all 0.1s ease;
-          border-bottom: 1px solid rgba(255,255,255,0.02);
-        }
-
-        .attack-item:last-child {
-          border-bottom: none;
-        }
-
-        .attack-item:hover:not(.selected) {
-          background: rgba(255, 255, 255, 0.03);
-        }
-
-        .attack-item.selected {
-          background: var(--terminal-accent);
-          color: #000;
-        }
-
-        .attack-item.selected .metadata {
-          color: rgba(0, 0, 0, 0.6);
-        }
-
-        .metadata {
-          font-size: 9px;
-          color: var(--terminal-muted);
-          text-transform: uppercase;
-        }
-
-        .terminal-button {
-          background: transparent;
-          border: 1px solid var(--terminal-border);
-          color: var(--terminal-text);
-          padding: 10px 16px;
-          border-radius: 0px;
-          text-align: center;
-          cursor: pointer;
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 12px;
-          font-weight: 700;
-          text-transform: uppercase;
-          transition: all 0.2s ease;
-        }
-
-        .primary-action {
-          background: var(--terminal-accent);
-          color: #000;
-          border-color: var(--terminal-accent);
-        }
-
-        .primary-action:hover:not(:disabled) {
-          background: #fca5a5;
-        }
-
-        .primary-action:disabled {
-          background: transparent;
-          color: var(--terminal-muted);
-          border-color: var(--terminal-border);
-          cursor: not-allowed;
-          opacity: 0.5;
-        }
-
-        .mobile-dropdown-trigger {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px 14px;
-          border: 1px solid var(--terminal-accent);
-          color: var(--terminal-accent);
-          cursor: pointer;
-          font-weight: 700;
-          background: rgba(248, 113, 113, 0.05);
-        }
-
-        .mobile-dropdown-content {
-          position: absolute;
-          top: 100%;
-          left: 20px;
-          right: 20px;
-          background: var(--terminal-bg);
-          border: 1px solid var(--terminal-border);
-          border-top: none;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-          z-index: 110;
-        }
+        .error-flash { animation: border-flash 0.6s var(--ease-out); }
+        .status-led { animation: led-pulse 2s infinite var(--ease-in-out); }
+        @keyframes led-pulse { 0%, 100% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } }
+        .attack-listbox { display: flex; flex-direction: column; border: 1px solid var(--terminal-border); background: rgba(0, 0, 0, 0.3); outline: none; transition: border-color 0.2s ease; border-radius: 4px; overflow: hidden; }
+        .attack-listbox:focus { border-color: var(--terminal-accent); }
+        .attack-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: none; background: transparent; color: var(--terminal-text); font-family: inherit; font-size: 11px; text-align: left; transition: all 0.15s var(--ease-out); border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .attack-item.selected { background: var(--terminal-accent); color: #000; }
+        .terminal-button { background: transparent; border: 1px solid var(--terminal-border); color: var(--terminal-text); padding: 12px 20px; text-align: center; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: all 0.2s var(--ease-spring); border-radius: 4px; letter-spacing: 1px; }
+        .primary-action { background: var(--terminal-accent); color: #000; border-color: var(--terminal-accent); }
+        .primary-action:disabled { color: var(--terminal-muted); border-color: var(--terminal-border); cursor: not-allowed; opacity: 0.3; background: transparent; }
       `}</style>
 
-      {/* Mission Control */}
       <div className="mission-control">
-        <div style={{ fontWeight: 700, fontSize: "16px", textTransform: "uppercase", color: "var(--terminal-accent)", letterSpacing: "1px" }}>
-          Mission Control
+        <div style={{ fontWeight: 800, fontSize: "18px", textTransform: "uppercase", color: "var(--terminal-accent)", letterSpacing: "2px" }}>
+          Target HUD
         </div>
 
-        {/* Token availability status - Hide on mobile if menu is closed to save space */}
-        <div className={isMobile && !mobileMenuOpen ? "hide-on-mobile" : ""}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 700 }}>Target Status</div>
-            <div style={{ padding: "8px", border: "1px solid var(--terminal-border)", background: "rgba(255,255,255,0.02)", fontSize: "10px" }}>
-              <div style={{ color: oauth2HasToken ? "var(--terminal-accent)" : "var(--terminal-muted)", display: "flex", gap: "6px" }}>
-                <span>[{oauth2HasToken ? "●" : " "}]</span> <span>OAUTH2_TOKEN_LOADED</span>
-              </div>
-              <div style={{ color: zkpHasToken ? "var(--terminal-secure)" : "var(--terminal-muted)", display: "flex", gap: "6px", marginTop: "4px" }}>
-                <span>[◆]</span> <span>ZKP_PROOF_{zkpHasToken ? "LOADED" : "MISSING"}</span>
-              </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Signal Lock</div>
+          <div style={{ padding: "12px", border: "1px solid var(--terminal-border)", background: "rgba(255,255,255,0.01)", fontSize: "10px", borderRadius: "4px" }}>
+            <div style={{ color: oauth2HasToken ? "var(--terminal-accent)" : "var(--terminal-muted)", display: "flex", gap: "8px", alignItems: "center" }}>
+              <span style={{ fontSize: "12px" }}>{oauth2HasToken ? "●" : "○"}</span> <span>OAUTH2_LINK_ACTIVE</span>
+            </div>
+            <div style={{ color: zkpHasToken ? "var(--terminal-secure)" : "var(--terminal-muted)", display: "flex", gap: "8px", marginTop: "6px", alignItems: "center" }}>
+              <span style={{ fontSize: "12px" }}>{zkpHasToken ? "◆" : "◇"}</span> <span>ZKP_VAULT_ENCRYPTED</span>
             </div>
           </div>
         </div>
 
-        {/* Attack type selector */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", position: "relative" }}>
-          <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 700 }}>Select Vector</div>
-          
-          {isMobile ? (
-            <>
-              <div className="mobile-dropdown-trigger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                <span>[SELECT ATTACK {mobileMenuOpen ? "▲" : "▼"}]</span>
-                <span style={{ fontSize: "11px", opacity: 0.8 }}>
-                  {ATTACK_TYPES.find(a => a.key === attackType)?.label}
-                </span>
-              </div>
-              {mobileMenuOpen && (
-                <div className="mobile-dropdown-content">
-                  <div 
-                    className="attack-listbox" 
-                    role="listbox" 
-                    tabIndex={0}
-                    onKeyDown={handleKeyDown}
-                    ref={listboxRef}
-                  >
-                    {ATTACK_TYPES.map(({ key, label, auth }) => (
-                      <div
-                        key={key}
-                        role="option"
-                        aria-selected={attackType === key}
-                        className={`attack-item ${attackType === key ? "selected" : ""}`}
-                        onClick={() => { setAttackType(key); resetPanels(); setMobileMenuOpen(false) }}
-                      >
-                        <div style={{ fontWeight: 600 }}>[SELECT] {label}</div>
-                        <div className="metadata">
-                          {auth === "both" ? "DUAL" : auth.toUpperCase()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div 
-              className="attack-listbox" 
-              role="listbox" 
-              tabIndex={0}
-              onKeyDown={handleKeyDown}
-              ref={listboxRef}
-              style={{ minHeight: "200px" }}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Analysis Mode</div>
+          <div style={{ display: "flex", gap: "4px" }}>
+            <button 
+              className={`terminal-button ${analysisMode === 'single' ? 'primary-action' : ''}`}
+              style={{ flex: 1, fontSize: '10px', padding: '8px' }}
+              onClick={() => { setAnalysisMode('single'); resetPanels(); }}
             >
-              {ATTACK_TYPES.map(({ key, label, auth }) => (
-                <div
-                  key={key}
-                  role="option"
-                  aria-selected={attackType === key}
-                  className={`attack-item ${attackType === key ? "selected" : ""}`}
-                  onClick={() => { setAttackType(key); resetPanels() }}
-                >
-                  <div style={{ fontWeight: 600 }}>[SELECT] {label}</div>
-                  <div className="metadata">
-                    {auth === "both" ? "DUAL" : auth.toUpperCase()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+              Single
+            </button>
+            <button 
+              className={`terminal-button ${analysisMode === 'compare' ? 'primary-action' : ''}`}
+              style={{ flex: 1, fontSize: '10px', padding: '8px' }}
+              onClick={() => { setAnalysisMode('compare'); resetPanels(); }}
+            >
+              Side-by-Side
+            </button>
+          </div>
         </div>
 
-        {/* Execute / Reset */}
-        <div style={{ marginTop: isMobile ? "0" : "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-          <button
-            className="terminal-button primary-action"
-            onClick={handleExecute}
-            disabled={!canExecute || (attackPhase !== "idle" && attackPhase !== "done")}
-          >
-            Execute Strike
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", opacity: analysisMode === 'compare' ? 0.3 : 1, pointerEvents: analysisMode === 'compare' ? 'none' : 'auto' }}>
+          <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Vector Select</div>
+          <div className="attack-listbox" role="listbox" tabIndex={0} onKeyDown={handleKeyDown} ref={listboxRef} style={{ minHeight: "220px" }}>
+            {ATTACK_TYPES.map(({ key, label, auth }) => (
+              <div key={key} role="option" aria-selected={attackType === key} className={`attack-item ${attackType === key ? "selected" : ""}`} onClick={() => { setAttackType(key); resetPanels() }}>
+                <div style={{ fontWeight: 700 }}>{label}</div>
+                <div style={{ fontSize: "9px", opacity: 0.7, fontWeight: 800 }}>{auth === "both" ? "DUAL" : auth.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button className="terminal-button primary-action" onClick={handleExecute} disabled={!canExecute || (attackPhase !== "idle" && attackPhase !== "done")}>
+            Initialize Strike
           </button>
-          {attackPhase === "done" && (
+          {(attackPhase === "done" || attackResult || compareResult) && (
             <button className="terminal-button" onClick={resetPanels}>
-              Reset Terminal
+              Reset Buffer
             </button>
           )}
         </div>
       </div>
 
-      {/* Data Stream (70%) */}
       <div className={`data-stream ${errorFlash ? "error-flash" : ""}`}>
-        <div style={{ fontWeight: 700, fontSize: "18px", textTransform: "uppercase", color: "var(--terminal-muted)" }}>
-          Data Stream
+        <div style={{ fontWeight: 800, fontSize: "14px", textTransform: "uppercase", color: "var(--terminal-muted)", letterSpacing: "1px" }}>
+          Live Execution Stream
         </div>
 
-        {/* Oscilloscope during scanning */}
-        {attackPhase === "scanning" && (
-          <Oscilloscope />
-        )}
+        {attackPhase === "scanning" && <Oscilloscope />}
 
-        {/* Initial state */}
         {attackPhase === "idle" && !attackResult && !compareResult && (
-          <div style={{ padding: "40px", textAlign: "center", border: "1px dashed var(--terminal-border)", color: "var(--terminal-muted)" }}>
-            {">"} AWAITING MISSION PARAMETERS...
+          <div style={{ padding: "60px 40px", textAlign: "center", border: "1px dashed var(--terminal-border)", color: "var(--terminal-muted)", fontSize: "12px", borderRadius: "4px", background: "rgba(0,0,0,0.1)" }}>
+            {">"} STANDBY... SELECT VECTOR TO BEGIN PENETRATION TEST
           </div>
         )}
 
-        {/* Auth type badge & Token preview (single mode) */}
-        {attackType !== "compare" && hasToken && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "inline-block", padding: "2px 8px", border: "1px solid var(--terminal-muted)", borderRadius: "0px", fontSize: "11px", width: "fit-content" }}>
-              {authType.toUpperCase()} // INTERCEPTED
+        {analysisMode !== "compare" && hasToken && attackPhase === "idle" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "rgba(255,255,255,0.01)", padding: "12px", border: "1px solid var(--terminal-border)", borderRadius: "4px" }}>
+            <div style={{ display: "inline-block", padding: "2px 8px", background: "var(--terminal-muted)", borderRadius: "2px", fontSize: "9px", width: "fit-content", color: "#000", fontWeight: 900 }}>
+              {authType.toUpperCase()}_SNIFFED
             </div>
-            <div style={{ fontSize: "11px", color: "var(--terminal-muted)", wordBreak: "break-all" }}>
-              RAW_BUFFER: {token.slice(0, 64)}...
+            <div style={{ fontSize: "10px", color: "var(--terminal-muted)", wordBreak: "break-all", opacity: 0.6, fontFamily: "var(--font-mono)" }}>
+              {token.slice(0, 160)}...
             </div>
           </div>
         )}
 
-        {/* Step log */}
-        {attackSteps.length > 0 && (
-          <ExecutionLog steps={attackSteps} />
+        {analysisMode === "compare" && hasEitherToken && attackPhase === "idle" && (
+          <div style={{ padding: "60px 40px", textAlign: "center", border: "1px dashed var(--terminal-border)", color: "var(--terminal-secure)", fontSize: "12px", borderRadius: "4px", background: "rgba(0,0,0,0.1)" }}>
+            {">"} MULTI_CHANNEL_SIGNAL_LOCKED... READY FOR FULL COMPARISON TEST
+          </div>
         )}
 
-        {/* Results */}
+        {attackSteps.length > 0 && <ExecutionLog steps={attackSteps} />}
+
         {attackPhase === "done" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ fontSize: "11px", color: "var(--terminal-muted)", textTransform: "uppercase", borderBottom: "1px solid var(--terminal-border)", paddingBottom: "4px" }}>
-              Forensic Analysis Report
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", borderBottom: "1px solid var(--terminal-border)", paddingBottom: "6px", fontWeight: 800, letterSpacing: "1px" }}>
+              Post-Exploitation Analysis
             </div>
-            
-            {attackType !== "compare" && attackResult && (
-              <ForensicsReadout result={attackResult} />
-            )}
-
-            {attackType === "compare" && compareResult && (
-              <CompareCard
-                oauth2Results={compareResult.oauth2}
-                zkpResults={compareResult.zkp}
-              />
-            )}
+            {analysisMode !== "compare" && attackResult && <ForensicsReadout result={attackResult} />}
+            {analysisMode === "compare" && compareResult && <CompareCard oauth2Results={compareResult.oauth2} zkpResults={compareResult.zkp} />}
           </div>
         )}
       </div>

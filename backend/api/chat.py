@@ -144,6 +144,7 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
             "token_info": token_info,
             "verification_time": payload.get("verification_time", 0),
             "token_size": len(bearer_token),
+            "agent_id": request.agent_id,
         }
     elif agent.auth_type == "zkp":
         # ZKP authentication: server stores only the public key (ZKSignature).
@@ -196,6 +197,7 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
             "proof_info": proof_info,
             "verification_time": verify_time,
             "token_size": proof_info.get("proof_size", 0),
+            "agent_id": request.agent_id,
         }
     else:
         raise AppError(
