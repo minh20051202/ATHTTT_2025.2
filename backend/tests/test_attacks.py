@@ -134,17 +134,48 @@ class TestAttackSimulations:
         assert data["details"]["attack_successful"] is True
         assert "stolen_secret" in data["details"]["exposed_data"]
 
-    def test_mitm_on_oauth2_intercepts_token(self, client, oauth2_pkjwt_agent):
+    def test_mitm_secure_fails(self, client, oauth2_pkjwt_agent):
+        """When TLS downgrade is inactive, MITM fails."""
+        from backend.utils.config import settings
+        settings.tls_downgrade_active = False
+        
         token = self._get_oauth2_bearer_token(client, oauth2_pkjwt_agent)
         resp = client.post("/api/attacks/mitm", json={"auth_type": "oauth2", "token": token, "attack_type": "mitm"})
         assert resp.status_code == 200
+        assert resp.json()["success"] is False
+        assert "protected the traffic" in resp.json()["message"]
+
+    def test_mitm_vulnerable_oauth2_succeeds(self, client, oauth2_pkjwt_agent):
+        """When TLS downgrade is active, MITM intercepts token."""
+        from backend.utils.config import settings
+        settings.tls_downgrade_active = True
+        settings.proxy_buffer.clear()
+        
+        token = self._get_oauth2_bearer_token(client, oauth2_pkjwt_agent)
+        
+        # Populate proxy buffer by making a chat request
+        client.post("/api/chat/intent", 
+                    json={"message": "hello", "agent_id": oauth2_pkjwt_agent.id},
+                    headers={"Authorization": f"Bearer {token}"})
+                    
+        resp = client.post("/api/attacks/mitm", json={"auth_type": "oauth2", "token": "dummy", "attack_type": "mitm"})
+        assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
-        assert "Authorization" in data["details"]["intercepted_data"]["header_name"]
+        assert data["details"]["intercepted_data"]["header_value_prefix"].startswith(token[:30])
 
-    def test_mitm_on_zkp_succeeds_in_simulation(self, client, zkp_agent):
-        """MITM on ZKP succeeds in simulation to match matrix 'Vulnerable' status."""
+    def test_mitm_vulnerable_zkp_succeeds(self, client, zkp_agent):
+        """MITM on ZKP when TLS is downgraded."""
+        from backend.utils.config import settings
+        settings.tls_downgrade_active = True
+        settings.proxy_buffer.clear()
+        
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
+        
+        # Populate proxy buffer
+        client.post("/api/chat/intent", 
+                    json={"message": "hello", "agent_id": zkp_agent.id, "zkp_token": zkp_token, "zkp_proof": proof})
+                    
         resp = client.post("/api/attacks/mitm", json={"auth_type": "zkp", "token": proof, "attack_type": "mitm"})
         assert resp.status_code == 200
         data = resp.json()

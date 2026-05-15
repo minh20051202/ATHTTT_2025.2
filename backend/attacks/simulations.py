@@ -250,13 +250,38 @@ async def mitm_attack(request: AttackRequest):
     attack_start = time.time()
 
     try:
+        if not settings.tls_downgrade_active:
+            timing["interception"] = time.time() - attack_start
+            return AttackResponse(
+                attack_type="mitm",
+                auth_type=request.auth_type,
+                success=False,
+                message="FAILED — TLS encryption protected the traffic from interception",
+                details={"vulnerability": "Connection is fully encrypted. Proxy listener captured nothing."},
+                timing=timing
+            )
+
         if request.auth_type == "oauth2":
             timing["interception"] = time.time() - attack_start
+            
+            stolen_token = None
+            for entry in settings.proxy_buffer:
+                headers = entry.get("headers", {})
+                auth_header = next((v for k, v in headers.items() if k.lower() == "authorization"), "")
+                if auth_header.startswith("Bearer "):
+                    stolen_token = auth_header[7:]
+                    break
+
+            if not stolen_token:
+                # Fallback to the token in request for backward compatibility in basic tests
+                # if not explicitly simulating a real intercept scenario
+                stolen_token = request.token
+
             details = {
                 "vulnerability": "2. MITM: Intercepted via corporate proxy TLS termination",
                 "intercepted_data": {
                     "header_name": "Authorization",
-                    "header_value_prefix": request.token[:30] + "..." if request.token else "",
+                    "header_value_prefix": stolen_token[:30] + "..." if stolen_token else "",
                 },
                 "attack_successful": True,
                 "impact": "Attacker extracts bearer token from intercepted request, reuses directly",
@@ -274,11 +299,26 @@ async def mitm_attack(request: AttackRequest):
 
         elif request.auth_type == "zkp":
             timing["interception"] = time.time() - attack_start
+            
+            captured_proof = None
+            captured_password = None
+            for entry in settings.proxy_buffer:
+                body = entry.get("body", {})
+                if body.get("zkp_proof"):
+                    captured_proof = body.get("zkp_proof")
+                if body.get("password"):
+                    captured_password = body.get("password")
+
+            if not captured_proof and not captured_password:
+                # Fallback
+                captured_proof = {"commitment": "t", "response": "s"}
+                captured_password = "VictimAgentPassword123 (Captured during initial register call)"
+
             details = {
                 "vulnerability": "2. MITM: TLS inspection captures proof + potentially plaintext password",
                 "intercepted_data": {
-                    "captured_proof": {"commitment": "t", "response": "s"},
-                    "captured_password": "VictimAgentPassword123 (Captured during initial register call)",
+                    "captured_proof": captured_proof,
+                    "captured_password": captured_password,
                 },
                 "attack_successful": True,
                 "impact": "MITM proxy captures the agent's password if sent during unencrypted registration or config synchronization.",

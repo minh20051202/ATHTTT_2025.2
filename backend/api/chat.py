@@ -115,6 +115,17 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
         if len(settings.log_buffer) > 20:
             settings.log_buffer.pop(0)
 
+        # SIMULATE MITM INTERCEPTION
+        if settings.tls_downgrade_active:
+            settings.proxy_buffer.append({
+                "timestamp": time.time(),
+                "path": "/api/chat/intent",
+                "headers": dict(http_request.headers),
+                "body": request.dict()
+            })
+            if len(settings.proxy_buffer) > 20:
+                settings.proxy_buffer.pop(0)
+
     if agent.auth_type == "oauth2":
         # OAuth2 PKJWT: verify incoming Bearer token from Authorization header
         auth_header = http_request.headers.get("Authorization", "") if http_request else ""

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
 
     # Logging simulation
     log_buffer: List[dict] = []
+    
+    # MITM interception simulation
+    tls_downgrade_active: bool = False
+    proxy_buffer: List[dict] = []
 
     @property
     def cors_origins(self) -> List[str]:
