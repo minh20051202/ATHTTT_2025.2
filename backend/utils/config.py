@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # ZKP Configuration
     zkp_secret_key: str = "your_zkp_secret_key_here"
 
+    # Attack Simulation Settings
+    strict_assertion_check: bool = True
+
     # Environment
     environment: str = "development"
     debug: bool = True

@@ -312,13 +312,41 @@ async def client_assertion_sub_attack(request: AttackRequest):
 
     try:
         if request.auth_type == "oauth2":
-            victim_id = "agent_VIP_99"
-            attacker_id = request.agent_id or "agent_attacker"
+            victim_id = str(request.agent_id) if request.agent_id else "99"
+            
+            from ..auth.oauth2 import oauth2_auth
+            attacker_public_key, attacker_private_key = oauth2_auth.create_rsa_keypair()
+            
+            forged_assertion, _ = oauth2_auth.create_client_assertion(victim_id, attacker_private_key)
+            
+            from ..db.operations import db_ops
+            from ..db.models import get_db, Agent
+            
+            db = next(get_db())
+            victim_agent = db.query(Agent).filter(Agent.id == int(victim_id)).first() if victim_id.isdigit() else None
+            victim_public_key = victim_agent.public_key if victim_agent else None
+
+            attack_successful = False
+            error_message = ""
+            
+            if not settings.strict_assertion_check:
+                attack_successful = True
+            else:
+                try:
+                    if victim_public_key:
+                        oauth2_auth.verify_client_assertion(forged_assertion, victim_public_key)
+                        attack_successful = True
+                    else:
+                        error_message = "Victim has no public key registered"
+                        attack_successful = False
+                except Exception as e:
+                    attack_successful = False
+                    error_message = str(e)
             
             details = {
                 "vulnerability": "4. Client Assertion Substitution: Missing identity-to-key cross-check",
                 "attack_sequence": [
-                    f"1. Attacker (ID: {attacker_id}) generates a valid signed JWT",
+                    f"1. Attacker generates a new RSA keypair",
                     f"2. Attacker modifies 'sub' and 'iss' claims to: {victim_id}",
                     "3. Attacker signs with their OWN private key",
                     "4. Vulnerable server only checks if the signature is valid for ANY known user"
@@ -328,17 +356,19 @@ async def client_assertion_sub_attack(request: AttackRequest):
                     "sub": victim_id,
                     "aud": "https://auth.example.com/token",
                 },
-                "attack_successful": True,
-                "impact": "SUCCESS — Attacker successfully impersonated victim agent via assertion substitution",
+                "attack_successful": attack_successful,
+                "impact": "SUCCESS — Attacker successfully impersonated victim agent via assertion substitution" if attack_successful else "FAILED — Server strictly validates signature against victim's registered public key",
                 "countermeasure": "Strict cross-check: The server MUST verify the assertion using the specific public key previously registered for the 'iss' (issuer) claim."
             }
+            if error_message:
+                details["error"] = error_message
 
             timing["validation"] = time.time() - attack_start
             return AttackResponse(
                 attack_type="client-assertion-sub",
                 auth_type="oauth2",
-                success=True,
-                message="SUCCESS — Malicious agent impersonated victim via forged assertion",
+                success=attack_successful,
+                message="SUCCESS — Malicious agent impersonated victim via forged assertion" if attack_successful else "FAILED: Invalid client assertion signature",
                 details=details,
                 timing=timing
             )

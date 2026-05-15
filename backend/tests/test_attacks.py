@@ -151,14 +151,24 @@ class TestAttackSimulations:
         assert data["success"] is True
         assert "captured_password" in data["details"]["intercepted_data"]
 
-    def test_client_assertion_sub_oauth2_succeeds_in_simulation(self, client, oauth2_pkjwt_agent):
-        """Assertion substitution succeeds in simulation to match matrix 'Vulnerable' status."""
+    def test_client_assertion_sub_oauth2_vulnerable(self, client, oauth2_pkjwt_agent):
+        from backend.utils.config import settings
+        settings.strict_assertion_check = False
         resp = client.post("/api/attacks/client-assertion-sub", 
-            json={"auth_type": "oauth2", "token": "dummy", "attack_type": "client-assertion-sub"})
+            json={"auth_type": "oauth2", "token": "dummy", "attack_type": "client-assertion-sub", "agent_id": oauth2_pkjwt_agent.id})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
         assert "vulnerability" in data["details"]
+
+    def test_client_assertion_sub_oauth2_strict(self, client, oauth2_pkjwt_agent):
+        from backend.utils.config import settings
+        settings.strict_assertion_check = True
+        resp = client.post("/api/attacks/client-assertion-sub", 
+            json={"auth_type": "oauth2", "token": "dummy", "attack_type": "client-assertion-sub", "agent_id": oauth2_pkjwt_agent.id})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
 
     def test_proof_correlation_zkp_succeeds(self, client, zkp_agent):
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
