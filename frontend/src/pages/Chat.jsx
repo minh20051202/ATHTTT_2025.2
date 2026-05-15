@@ -7,8 +7,6 @@ import { demoApi } from "../services/demoApi.js";
 import { generateKeyPair, signWithPrivateKeyHex } from "../lib/zkp.js";
 import { generateRSAKeyPair } from "../lib/oauth2.js";
 import ChatThread from "../components/ChatThread.jsx";
-import ComputationSidebar from "../components/ComputationSidebar.jsx";
-import AttackPanel from "../components/AttackPanel.jsx";
 
 // ---------------------------------------------------------------------------
 // Main Chat component
@@ -250,36 +248,42 @@ export default function Chat() {
   }
 
   return (
-    <div className="chat-layout-grid">
-      {/* Left: ChatThread */}
+    <div style={{ height: 'calc(100vh - var(--navbar-height))', padding: 'var(--space-4) var(--space-8)' }}>
+      {/* Auth type tabs */}
       <div
         style={{
-          borderRight: "1px solid var(--color-border)",
-          paddingRight: "var(--space-4)",
+          display: "flex",
+          gap: "var(--space-3)",
+          alignItems: "center",
+          marginBottom: "var(--space-4)",
         }}
       >
-        {/* Attack mode toggle + auth tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: "var(--space-3)",
-            alignItems: "center",
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          {/* Attack mode toggle */}
+        {[
+          {
+            key: "oauth2",
+            label: "OAuth2 Agent",
+            color: "var(--color-oauth2)",
+            muted: "var(--color-oauth2-muted)",
+          },
+          {
+            key: "zkp",
+            label: "ZKP Agent",
+            color: "var(--color-zkp)",
+            muted: "var(--color-zkp-muted)",
+          },
+        ].map(({ key, label, color, muted }) => (
           <button
-            onClick={() => setAttackMode((v) => !v)}
+            key={key}
+            onClick={() => setAuthType(key)}
             style={{
-              padding: "8px 20px",
+              padding: "9px var(--space-5)",
               border: "none",
-              borderBottom: attackMode
-                ? "2px solid var(--color-attack)"
-                : "2px solid transparent",
-              background: attackMode
-                ? "var(--color-attack-muted)"
-                : "transparent",
-              color: attackMode ? "var(--color-attack)" : "var(--color-muted)",
+              borderBottom:
+                authType === key
+                  ? `3px solid ${color}`
+                  : "2px solid transparent",
+              background: authType === key ? muted : "transparent",
+              color: authType === key ? color : "var(--color-muted)",
               fontWeight: 600,
               fontSize: "20px",
               cursor: "pointer",
@@ -287,70 +291,20 @@ export default function Chat() {
                 "background 120ms var(--ease-out), color 120ms var(--ease-out), border-color 120ms var(--ease-out)",
             }}
           >
-            Attack Mode
+            {label}
           </button>
-
-          {/* Auth type tabs */}
-          {[
-            {
-              key: "oauth2",
-              label: "OAuth2 Agent",
-              color: "var(--color-oauth2)",
-              muted: "var(--color-oauth2-muted)",
-            },
-            {
-              key: "zkp",
-              label: "ZKP Agent",
-              color: "var(--color-zkp)",
-              muted: "var(--color-zkp-muted)",
-            },
-          ].map(({ key, label, color, muted }) => (
-            <button
-              key={key}
-              onClick={() => setAuthType(key)}
-              style={{
-                padding: "9px var(--space-5)",
-                border: "none",
-                borderBottom:
-                  authType === key
-                    ? `3px solid ${color}`
-                    : "2px solid transparent",
-                background: authType === key ? muted : "transparent",
-                color: authType === key ? color : "var(--color-muted)",
-                fontWeight: 600,
-                fontSize: "20px",
-                cursor: "pointer",
-                transition:
-                  "background 120ms var(--ease-out), color 120ms var(--ease-out), border-color 120ms var(--ease-out)",
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <ChatThread
-          authType={authType}
-          messages={messages}
-          sending={sending}
-          onSend={handleSend}
-          message={message}
-          setMessage={setMessage}
-          disabled={!setupReady || (authType === "zkp" && !zkpCredentials)}
-        />
+        ))}
       </div>
 
-      {/* Right: AttackPanel or ComputationSidebar */}
-      {attackMode ? (
-        <AttackPanel />
-      ) : (
-        <ComputationSidebar
-          authType={authType}
-          latestResult={resultsByAuth[authType]}
-          messageCount={messages.length}
-          oauth2Credentials={oauth2Credentials}
-          zkpCredentials={zkpCredentials}
-        />
-      )}
+      <ChatThread
+        authType={authType}
+        messages={messages}
+        sending={sending}
+        onSend={handleSend}
+        message={message}
+        setMessage={setMessage}
+        disabled={!setupReady || (authType === "zkp" && !zkpCredentials)}
+      />
     </div>
   );
 }

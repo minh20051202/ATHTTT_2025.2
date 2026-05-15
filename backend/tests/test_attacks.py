@@ -75,37 +75,36 @@ class TestAttackSimulations:
         assert "vulnerability" in data["details"]
         assert data["details"]["vulnerability"] == "Challenge token single-use enforced at server"
 
-    def test_token_theft_on_oauth2_exposes_data(self, client, oauth2_pkjwt_agent):
-        """Token theft on OAuth2 exposes credential data."""
+    def test_credential_theft_on_oauth2_exposes_data(self, client, oauth2_pkjwt_agent):
+        """Credential theft on OAuth2 exposes credential data."""
         token = self._get_oauth2_bearer_token(client, oauth2_pkjwt_agent)
 
         attack_response = client.post(
-            "/api/attacks/token-theft",
+            "/api/attacks/credential-theft",
             json={
                 "auth_type": "oauth2",
                 "token": token,
-                "attack_type": "token_theft"
+                "attack_type": "credential-theft"
             }
         )
 
         assert attack_response.status_code == 200
         data = attack_response.json()
         assert data["success"] is True
-        assert data["attack_type"] == "token_theft"
-        assert "stolen_data" in data["details"]
-        assert "token" in data["attack_type"]
-        assert data["details"]["vulnerability"] == "OAuth2 tokens expose user credentials"
+        assert data["attack_type"] == "credential-theft"
+        assert "exposed_data" in data["details"]
+        assert data["details"]["vulnerability"] == "OAuth2 tokens captured from AI agent conversation logs/tool calls"
 
-    def test_token_theft_on_zkp_does_not_expose_credentials(self, client, zkp_agent):
-        """Token theft on ZKP does NOT expose credentials."""
+    def test_credential_theft_on_zkp_does_not_expose_credentials(self, client, zkp_agent):
+        """Credential theft on ZKP does NOT expose credentials."""
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
 
         attack_response = client.post(
-            "/api/attacks/token-theft",
+            "/api/attacks/credential-theft",
             json={
                 "auth_type": "zkp",
                 "token": proof,
-                "attack_type": "token_theft"
+                "attack_type": "credential-theft"
             }
         )
 
@@ -113,45 +112,51 @@ class TestAttackSimulations:
         data = attack_response.json()
         assert data["success"] is False
         assert data["auth_type"] == "zkp"
-        assert "None" in data["details"]["vulnerability"]
         assert data["details"]["attack_successful"] is False
+        assert "password_present" in data["details"]["exposed_data"]
+        assert data["details"]["exposed_data"]["password_present"] is False
 
-    def test_credential_stuffing_on_oauth2_succeeds(self, client, oauth2_pkjwt_agent):
-        """Credential stuffing on OAuth2 succeeds with stolen token."""
+    def test_mitm_on_oauth2_intercepts_token(self, client, oauth2_pkjwt_agent):
         token = self._get_oauth2_bearer_token(client, oauth2_pkjwt_agent)
-
-        attack_response = client.post(
-            "/api/attacks/credential-stuffing",
-            json={
-                "auth_type": "oauth2",
-                "token": token,
-                "attack_type": "credential_stuffing",
-                "agent_id": oauth2_pkjwt_agent.id
-            }
-        )
-
-        assert attack_response.status_code == 200
-        data = attack_response.json()
+        resp = client.post("/api/attacks/mitm", json={"auth_type": "oauth2", "token": token, "attack_type": "mitm"})
+        assert resp.status_code == 200
+        data = resp.json()
         assert data["success"] is True
-        assert data["attack_type"] == "credential_stuffing"
+        assert "Authorization" in data["details"]["intercepted_data"]["header_name"]
 
-    def test_credential_stuffing_on_zkp_fails(self, client, zkp_agent):
-        """Credential stuffing on ZKP fails without the password."""
+    def test_mitm_on_zkp_captured_but_fails(self, client, zkp_agent):
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
-
-        attack_response = client.post(
-            "/api/attacks/credential-stuffing",
-            json={
-                "auth_type": "zkp",
-                "token": proof,
-                "attack_type": "credential_stuffing"
-            }
-        )
-
-        assert attack_response.status_code == 200
-        data = attack_response.json()
+        resp = client.post("/api/attacks/mitm", json={"auth_type": "zkp", "token": proof, "attack_type": "mitm"})
+        assert resp.status_code == 200
+        data = resp.json()
         assert data["success"] is False
-        assert data["auth_type"] == "zkp"
+        assert data["details"]["intercepted_data"]["secret_password_visible"] is False
+
+    def test_client_assertion_sub_oauth2_blocked(self, client, oauth2_pkjwt_agent):
+        resp = client.post("/api/attacks/client-assertion-sub", 
+            json={"auth_type": "oauth2", "token": "dummy", "attack_type": "client-assertion-sub"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert "server_validation" in data["details"]
+
+    def test_proof_correlation_zkp_succeeds(self, client, zkp_agent):
+        zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
+        resp = client.post("/api/attacks/proof-correlation", 
+            json={"auth_type": "zkp", "token": proof, "attack_type": "proof-correlation"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert "leaked_metadata" in data["details"]
+
+    def test_challenge_predictability_zkp_blocked(self, client, zkp_agent):
+        zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
+        resp = client.post("/api/attacks/challenge-predictability", 
+            json={"auth_type": "zkp", "token": zkp_token, "attack_type": "challenge-predictability"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert data["details"]["current_token_analysis"]["entropy_bits"] == 122
 
     def test_invalid_auth_type_returns_error(self, client, oauth2_pkjwt_agent):
         """Invalid auth_type in attack endpoints returns 400."""

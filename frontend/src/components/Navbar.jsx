@@ -1,3 +1,5 @@
+import { NavLink } from 'react-router-dom'
+
 export default function Navbar() {
   return (
     <nav style={{
@@ -13,7 +15,7 @@ export default function Navbar() {
       display: 'flex',
       alignItems: 'center',
       padding: '0 var(--space-6)',
-      gap: 'var(--space-2)',
+      gap: 'var(--space-8)',
       zIndex: 50,
     }}>
       {/* Logo / wordmark */}
@@ -27,6 +29,37 @@ export default function Navbar() {
       }}>
         Agentic Commerce
       </span>
+
+      <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
+        <NavLink 
+          to="/" 
+          style={({ isActive }) => ({
+            textDecoration: 'none',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: isActive ? 'var(--color-primary)' : 'var(--color-muted)',
+            borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+            padding: '4px 0',
+            transition: 'all 0.2s ease'
+          })}
+        >
+          Chat
+        </NavLink>
+        <NavLink 
+          to="/attacks" 
+          style={({ isActive }) => ({
+            textDecoration: 'none',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: isActive ? 'var(--color-primary)' : 'var(--color-muted)',
+            borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+            padding: '4px 0',
+            transition: 'all 0.2s ease'
+          })}
+        >
+          Attack Simulation
+        </NavLink>
+      </div>
     </nav>
   )
 }
