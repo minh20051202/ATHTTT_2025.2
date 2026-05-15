@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # Attack Simulation Settings
     strict_assertion_check: bool = True
+    vulnerable_rng: bool = False
 
     # Environment
     environment: str = "development"

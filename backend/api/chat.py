@@ -69,7 +69,10 @@ async def zkp_get_challenge(agent_id: int, db: Session = Depends(get_db)):
         )
 
     # Generate challenge token: UUID v4, unique per challenge
-    token = str(uuid.uuid4())
+    if settings.vulnerable_rng:
+        token = f"predictable-token-{int(time.time())}"
+    else:
+        token = str(uuid.uuid4())
     _challenge_store[token] = {"agent_id": agent_id, "expires": time.time() + _CHALLENGE_TTL_SECONDS}
 
     # Clean up expired tokens

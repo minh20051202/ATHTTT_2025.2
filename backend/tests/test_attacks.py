@@ -179,8 +179,11 @@ class TestAttackSimulations:
         assert data["success"] is True
         assert "leaked_metadata" in data["details"]
 
-    def test_challenge_predictability_zkp_succeeds_in_simulation(self, client, zkp_agent):
-        """Challenge predictability succeeds in simulation to match matrix 'Vulnerable' status."""
+    def test_challenge_predictability_zkp_vulnerable(self, client, zkp_agent):
+        """Challenge predictability succeeds when vulnerable_rng is True."""
+        from backend.utils.config import settings
+        settings.vulnerable_rng = True
+        
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
         resp = client.post("/api/attacks/challenge-predictability", 
             json={"auth_type": "zkp", "token": zkp_token, "attack_type": "challenge-predictability"})
@@ -188,6 +191,19 @@ class TestAttackSimulations:
         data = resp.json()
         assert data["success"] is True
         assert "predicted_challenge_n_plus_1" in data["details"]["observation"]
+
+    def test_challenge_predictability_zkp_secure(self, client, zkp_agent):
+        """Challenge predictability fails when vulnerable_rng is False."""
+        from backend.utils.config import settings
+        settings.vulnerable_rng = False
+        
+        zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
+        resp = client.post("/api/attacks/challenge-predictability", 
+            json={"auth_type": "zkp", "token": zkp_token, "attack_type": "challenge-predictability"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert "entropy" in data["details"]["observation"]
 
     def test_active_replay_attack_oauth2(self, client, oauth2_pkjwt_agent):
         """Replaying a valid OAuth2 Bearer token succeeds and exfiltrates real data."""

@@ -446,43 +446,55 @@ async def challenge_predictability_attack(request: AttackRequest):
 
     try:
         if request.auth_type == "zkp":
-            current_token = request.token or "token_intercepted_v1"
-            predicted_next = hashlib.sha256(current_token.encode()).hexdigest()[:36]
-            
-            details = {
-                "vulnerability": "6. Challenge Token Predictability: Predictable Challenge PRNG (Low Entropy / Improper Seeding)",
-                "observation": {
-                    "intercepted_challenge_n": current_token,
-                    "predicted_challenge_n_plus_1": predicted_next,
-                },
-                "attack_logic": [
-                    "1. Intercept consecutive challenges to identify the RNG sequence",
-                    "2. Predict the next challenge 'T' before it's officially issued",
-                    "3. Pre-compute and pre-sign a valid proof 's' for that specific 'T'",
-                    "4. Inject the pre-computed proof the moment the victim attempts login"
-                ],
-                "pre_computed_artifact": {
-                    "target_challenge": predicted_next,
-                    "pre_signed_proof": {"commitment": "t_static_demo", "response": "s_static_demo"},
-                    "exploit_status": "READY — Awaiting challenge issuance"
-                },
-                "attack_successful": True,
-                "impact": "SUCCESS — Attacker successfully pre-computed a valid proof by predicting the next challenge",
-                "countermeasure": "Use high-entropy entropy sources (TPM, hardware RNG) for all challenges. Never use time() as a seed."
-            }
+            from ..utils.config import settings
+            if settings.vulnerable_rng:
+                predicted_next = f"predictable-token-{int(time.time()) + 1}"
+                details = {
+                    "vulnerability": "6. Challenge Token Predictability: Predictable Challenge PRNG (Low Entropy / Improper Seeding)",
+                    "observation": {
+                        "predicted_challenge_n_plus_1": predicted_next,
+                    },
+                    "attack_logic": [
+                        "1. Intercept consecutive challenges to identify the RNG sequence",
+                        "2. Predict the next challenge 'T' before it's officially issued",
+                        "3. Pre-compute and pre-sign a valid proof 's' for that specific 'T'",
+                        "4. Inject the pre-computed proof the moment the victim attempts login"
+                    ],
+                    "pre_computed_artifact": {
+                        "target_challenge": predicted_next,
+                        "pre_signed_proof": {"commitment": "t_static_demo", "response": "s_static_demo"},
+                        "exploit_status": "READY — Awaiting challenge issuance"
+                    },
+                    "attack_successful": True,
+                    "impact": "SUCCESS — Attacker successfully pre-computed a valid proof by predicting the next challenge",
+                    "countermeasure": "Use high-entropy entropy sources (TPM, hardware RNG) for all challenges. Never use time() as a seed."
+                }
+                success = True
+                message = "SUCCESS — Next challenge predicted; valid proof pre-computed offline"
+            else:
+                details = {
+                    "vulnerability": "6. Challenge Token Predictability: Predictable Challenge PRNG",
+                    "observation": {
+                        "entropy": "UUID v4 (122 bits)",
+                    },
+                    "attack_successful": False,
+                    "impact": "FAILURE — Challenge token is cryptographically secure (UUID v4) and unpredictable.",
+                    "countermeasure": "Already using high-entropy entropy sources for all challenges."
+                }
+                success = False
+                message = "FAILED — Challenge token is cryptographically secure and unpredictable."
 
             timing["analysis"] = time.time() - attack_start
             return AttackResponse(
                 attack_type="challenge-predictability",
                 auth_type="zkp",
-                success=True,
-                message="SUCCESS — Next challenge predicted; valid proof pre-computed offline",
+                success=success,
+                message=message,
                 details=details,
                 timing=timing
             )
 
-        elif request.auth_type == "oauth2":
-            return AttackResponse(
+        elif request.auth_type == "oauth2":            return AttackResponse(
                 attack_type="challenge-predictability",
                 auth_type="oauth2",
                 success=False,
