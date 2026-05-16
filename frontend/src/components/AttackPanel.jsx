@@ -81,9 +81,7 @@ function ForensicsReadout({ result, capturedOauth2Token, capturedZkpProof }) {
   const hasStolenCredential = !!(
     result.details?.exposed_data?.stolen_token ||
     result.details?.intercepted_data ||
-    result.details?.stolen_identity ||
-    // nonce-reuse: match proves x was recovered
-    result.details?.match  // nonce-reuse: match = recovered x === actual x
+    result.details?.stolen_identity
   );
 
   const status = result.success ? "vulnerable" : "protected";
