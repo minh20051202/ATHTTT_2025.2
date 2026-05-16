@@ -7,6 +7,7 @@ import { demoApi } from "../services/demoApi.js";
 import { generateKeyPair, signWithPrivateKeyHex } from "../lib/zkp.js";
 import { generateRSAKeyPair } from "../lib/oauth2.js";
 import ChatThread from "../components/ChatThread.jsx";
+import ComputationSidebar from "../components/ComputationSidebar.jsx";
 
 // ---------------------------------------------------------------------------
 // Main Chat component
@@ -26,10 +27,24 @@ export default function Chat() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem("chat_messages");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [oauth2Credentials, setOauth2Credentials] = useState(null);
   const [zkpCredentials, setZkpCredentials] = useState(null);
   const [setupReady, setSetupReady] = useState(false);
+
+  // Persist messages to sessionStorage so they survive navigation
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("chat_messages", JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
 
   const pendingAgentIdRef = useRef(null);
 
@@ -248,62 +263,51 @@ export default function Chat() {
   }
 
   return (
-    <div style={{ height: 'calc(100vh - var(--navbar-height))', padding: 'var(--space-4) var(--space-8)' }}>
-      {/* Auth type tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--space-3)",
-          alignItems: "center",
-          marginBottom: "var(--space-4)",
-        }}
-      >
-        {[
-          {
-            key: "oauth2",
-            label: "OAuth2 Agent",
-            color: "var(--color-oauth2)",
-            muted: "var(--color-oauth2-muted)",
-          },
-          {
-            key: "zkp",
-            label: "ZKP Agent",
-            color: "var(--color-zkp)",
-            muted: "var(--color-zkp-muted)",
-          },
-        ].map(({ key, label, color, muted }) => (
-          <button
-            key={key}
-            onClick={() => setAuthType(key)}
-            style={{
-              padding: "9px var(--space-5)",
-              border: "none",
-              borderBottom:
-                authType === key
-                  ? `3px solid ${color}`
-                  : "2px solid transparent",
-              background: authType === key ? muted : "transparent",
-              color: authType === key ? color : "var(--color-muted)",
-              fontWeight: 600,
-              fontSize: "20px",
-              cursor: "pointer",
-              transition:
-                "background 120ms var(--ease-out), color 120ms var(--ease-out), border-color 120ms var(--ease-out)",
-            }}
-          >
-            {label}
-          </button>
-        ))}
+    <div className="chat-layout-grid">
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, height: '100%' }}>
+        <div className="auth-tabs">
+          {[
+            {
+              key: "oauth2",
+              label: "OAuth2 Agent",
+            },
+            {
+              key: "zkp",
+              label: "ZKP Agent",
+            },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setAuthType(key)}
+              className={`auth-tab ${authType === key ? 'active' : ''}`}
+              style={{
+                color: authType === key 
+                  ? (key === 'zkp' ? 'var(--color-zkp)' : 'var(--color-oauth2)') 
+                  : 'var(--color-muted)'
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <ChatThread
+          authType={authType}
+          messages={messages}
+          sending={sending}
+          onSend={handleSend}
+          message={message}
+          setMessage={setMessage}
+          disabled={!setupReady || (authType === "zkp" && !zkpCredentials)}
+        />
       </div>
 
-      <ChatThread
+      <ComputationSidebar
         authType={authType}
-        messages={messages}
-        sending={sending}
-        onSend={handleSend}
-        message={message}
-        setMessage={setMessage}
-        disabled={!setupReady || (authType === "zkp" && !zkpCredentials)}
+        latestResult={latestResult}
+        messageCount={messages.length}
+        oauth2Credentials={oauth2Credentials}
+        zkpCredentials={zkpCredentials}
       />
     </div>
   );
