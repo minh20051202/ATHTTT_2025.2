@@ -1,15 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useChatHistory } from "../context/ChatHistoryContext.jsx";
 import { attackApi } from "../services/attackApi.js";
-import { signWithFixedNonce, generatePrivateKey } from "../lib/zkp.js";
 
 const ATTACK_TYPES = [
-  { key: "credential-theft", label: "1. Credential Theft via Context/Logs", auth: "both", desc: "Credentials stolen from AI agent conversation logs or context" },
-  { key: "mitm",             label: "2. MITM / TLS Downgrade",           auth: "both", desc: "Intercept credentials in transit via TLS downgrade or proxy" },
-  { key: "replay",           label: "3. Token Replay / Long-Lived Token", auth: "oauth2", desc: "Reuse captured bearer token until expiry" },
-  { key: "client-assertion-sub", label: "4. Client Assertion Substitution", auth: "oauth2", desc: "Forge assertions impersonating another agent" },
-  { key: "proof-correlation", label: "5. Proof Correlation / Fingerprinting", auth: "zkp", desc: "Traffic analysis reveals identity patterns via ZKP metadata" },
-  { key: "challenge-predictability", label: "6. Challenge Token Predictability", auth: "zkp", desc: "Predict server challenge to pre-compute valid proof" },
+  { key: "credential-theft", label: "1. Credential Theft via Logs", auth: "both", desc: "Bearer tokens or secrets stolen from AI agent conversation logs or context" },
+  { key: "mitm",             label: "2. TLS Interception / MITM",   auth: "both", desc: "Proxy intercepts credentials in transit via TLS downgrade or inspection" },
+  { key: "replay",           label: "3. Token Replay",               auth: "oauth2", desc: "Reuse captured bearer token until expiry" },
+  { key: "client-assertion-sub", label: "4. Client Assertion Substitution", auth: "oauth2", desc: "Forge assertions impersonating another agent by modifying JWT claims" },
+  { key: "proof-correlation", label: "5. Traffic Analysis / Fingerprinting", auth: "zkp", desc: "Observer links ZKP authentications via proof metadata fingerprint" },
+  { key: "nonce-reuse", label: "6. Nonce Reuse Attack", auth: "zkp", desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
 ]
 
 /* ─── Status LED pulsing pixel ─── */
@@ -52,7 +51,7 @@ function Oscilloscope() {
       opacity: 0.5,
       padding: "16px",
       border: "1px solid rgba(52, 211, 153, 0.1)",
-      background: "rgba(0,0,0,0.5)",
+      background: "rgba(0,0,0,0.04)",
       height: "160px",
       overflow: "hidden",
       display: "flex",
@@ -74,28 +73,35 @@ function Oscilloscope() {
 }
 
 /* ─── Forensic analysis readout ─── */
-function ForensicsReadout({ result }) {
+function ForensicsReadout({ result, capturedOauth2Token, capturedZkpProof }) {
   if (!result) return null;
 
   const vulnerability = result.details?.vulnerability || result.message;
-  const payload = result.details?.exposed_data || 
-                 result.details?.leaked_metadata || 
-                 result.details?.intercepted_data || 
+  const payload = result.details?.exposed_data ||
+                 result.details?.leaked_metadata ||
+                 result.details?.intercepted_data ||
                  result.details?.server_validation ||
                  result.details?.math ||
                  result.details?.mathematical_proof ||
-                 result.details?.stolen_identity;
-  
+                 result.details?.stolen_identity ||
+                 result.details?.attack_phases;
+
   const exfiltrated = result.details?.exfiltrated_data;
-  const mitigation = result.details?.countermeasure || result.details?.countermeasure_in_place;
   const exposedPrivateKey = result.details?.exposed_private_key;
+  const hasStolenCredential = !!(
+    result.details?.exposed_data?.stolen_token ||
+    result.details?.intercepted_data ||
+    result.details?.stolen_identity ||
+    // nonce-reuse: match proves x was recovered
+    result.details?.match  // nonce-reuse: match = recovered x === actual x
+  );
 
   const status = result.success ? "vulnerable" : "protected";
 
   return (
     <div style={{ 
       border: "1px solid var(--terminal-border)",
-      background: "rgba(255,255,255,0.02)",
+      background: "rgba(0,0,0,0.03)",
       display: "flex",
       flexDirection: "column",
       fontSize: "11px",
@@ -131,7 +137,7 @@ function ForensicsReadout({ result }) {
             <pre style={{ 
               margin: 0, 
               padding: "12px", 
-              background: "#000", 
+              background: "rgba(80,0,0,0.08)", 
               color: "#ff4444", 
               fontSize: "10px", 
               wordBreak: "break-all",
@@ -153,6 +159,58 @@ function ForensicsReadout({ result }) {
           </div>
         )}
 
+        {result.auth_type === "zkp" && result.details?.attack_logic && result.details?.attack_logic?.nonce_r_reused && (
+          <div>
+            <div style={{ color: "var(--terminal-accent)", fontWeight: 800, fontSize: "9px", marginBottom: "6px", textTransform: "uppercase" }}>[NONCE_REUSE_ARTIFACT]</div>
+            <pre style={{
+              margin: 0,
+              padding: "10px",
+              background: "rgba(239,68,68,0.06)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "var(--terminal-accent)",
+              fontSize: "10px",
+              overflowX: "auto",
+              fontFamily: "var(--font-mono)",
+              borderRadius: "2px",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+            }}>
+              {JSON.stringify({
+                nonce_r: result.details.attack_logic.nonce_r_reused,
+                proof1_c1: result.details.attack_logic.proof1?.c1,
+                proof1_s1: result.details.attack_logic.proof1?.s1,
+                proof2_c2: result.details.attack_logic.proof2?.c2,
+                proof2_s2: result.details.attack_logic.proof2?.s2,
+                recovered_secret: result.details.recovered_secret,
+                match: result.details.match,
+              }, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {(result.auth_type === "oauth2" ? capturedOauth2Token : capturedZkpProof) && hasStolenCredential && (
+          <div>
+            <div style={{ color: "var(--terminal-accent)", fontWeight: 800, fontSize: "9px", marginBottom: "6px", textTransform: "uppercase" }}>[CAPTURED_CREDENTIAL]</div>
+            <pre style={{
+              margin: 0,
+              padding: "10px",
+              background: "rgba(239,68,68,0.06)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "var(--terminal-accent)",
+              fontSize: "10px",
+              overflowX: "auto",
+              fontFamily: "var(--font-mono)",
+              borderRadius: "2px",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+            }}>
+              {result.auth_type === "oauth2"
+                ? `BEARER_TOKEN:\n${capturedOauth2Token}`
+                : `ZKP_PROOF:\n${capturedZkpProof}`}
+            </pre>
+          </div>
+        )}
+
         <div>
           <div style={{ color: "var(--terminal-muted)", marginBottom: "4px", fontWeight: 800, fontSize: "9px", textTransform: "uppercase" }}>[VULNERABILITY_ID]</div>
           <div style={{ color: "var(--terminal-text)", fontSize: "12px" }}>{vulnerability}</div>
@@ -164,7 +222,7 @@ function ForensicsReadout({ result }) {
             <pre style={{ 
               margin: 0, 
               padding: "10px", 
-              background: "rgba(0,0,0,0.3)", 
+              background: "rgba(0,0,0,0.04)", 
               border: "1px solid var(--terminal-border)",
               color: "var(--terminal-secure)",
               overflowX: "auto",
@@ -177,13 +235,7 @@ function ForensicsReadout({ result }) {
           </div>
         )}
 
-        {mitigation && (
-          <div style={{ borderTop: "1px solid var(--terminal-border)", paddingTop: "12px" }}>
-            <div style={{ color: "var(--terminal-secure)", marginBottom: "4px", fontWeight: 800, fontSize: "9px", textTransform: "uppercase" }}>[REMEDIATION_PROTOCOL]</div>
-            <div style={{ color: "var(--terminal-secure)", fontSize: "11px", opacity: 0.9 }}>{mitigation}</div>
-          </div>
-        )}
-      </div>
+              </div>
     </div>
   );
 }
@@ -232,7 +284,7 @@ function ExecutionLog({ steps }) {
 }
 
 /* ─── Side-by-side OAuth2 vs ZKP comparison card ─── */
-function CompareCard({ oauth2Results, zkpResults }) {
+function CompareCard({ oauth2Results, zkpResults, capturedOauth2Token, capturedZkpProof }) {
   const oauth2Vulnerable = oauth2Results && Object.values(oauth2Results).some(r => r?.success)
   const zkpVulnerable    = zkpResults && Object.values(zkpResults).some(r => r?.success)
 
@@ -289,7 +341,7 @@ function CompareCard({ oauth2Results, zkpResults }) {
                 <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "6px", textTransform: "uppercase" }}>
                   {key.replace(/_/g, " ")}
                 </div>
-                <ForensicsReadout result={result} />
+                <ForensicsReadout result={result} capturedOauth2Token={capturedOauth2Token} capturedZkpProof={capturedZkpProof} />
               </div>
             ))
           ) : null}
@@ -302,7 +354,7 @@ function CompareCard({ oauth2Results, zkpResults }) {
                 <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "6px", textTransform: "uppercase" }}>
                   {key.replace(/_/g, " ")}
                 </div>
-                <ForensicsReadout result={result} />
+                <ForensicsReadout result={result} capturedOauth2Token={capturedOauth2Token} capturedZkpProof={capturedZkpProof} />
               </div>
             ))
           ) : null}
@@ -317,7 +369,6 @@ export default function AttackPanel() {
   const { latestResult, resultsByAuth } = useChatHistory()
 
   const [attackType, setAttackType]     = useState("replay")
-  const [analysisMode, setAnalysisMode] = useState("single")
   const [attackPhase, setAttackPhase]   = useState("idle")
   const [attackSteps, setAttackSteps]   = useState([])
   const [attackResult, setAttackResult] = useState(null)
@@ -333,21 +384,10 @@ export default function AttackPanel() {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  const authInfo = latestResult?.auth_info
-  const authType = authInfo?.type || "oauth2"
-  const token = authInfo?.type === "oauth2"
-    ? authInfo.token
-    : authInfo?.type === "zkp"
-      ? authInfo.proof
-      : null
-  const agentId = authInfo?.agent_id
-
   const oauth2Token = resultsByAuth?.oauth2?.auth_info?.token
   const zkpToken    = resultsByAuth?.zkp?.auth_info?.proof
   const oauth2HasToken = !!oauth2Token
   const zkpHasToken    = !!zkpToken
-  const hasEitherToken = oauth2HasToken || zkpHasToken
-  const hasToken        = !!token
 
   const resetPanels = useCallback(() => {
     setAttackPhase("idle")
@@ -356,40 +396,95 @@ export default function AttackPanel() {
     setCompareResult(null)
   }, [])
 
-  const executeSingleAttack = useCallback(async () => {
-    if (!hasToken) return
+  const executeAttack = useCallback(async () => {
+    const selectedAttack = ATTACK_TYPES.find(a => a.key === attackType)
+    const targetAuth = selectedAttack?.auth || "oauth2"
+
+    if (targetAuth === "oauth2" && !oauth2HasToken) return;
+    if (targetAuth === "zkp" && attackType !== "nonce-reuse" && !zkpHasToken) return;
+    if (targetAuth === "both" && !oauth2HasToken && !zkpHasToken) return;
+
     setAttackPhase("scanning")
     setAttackResult(null)
+    setCompareResult(null)
     setAttackSteps([])
-    setAttackSteps([{ label: "SCANNING_TRAFFIC", detail: "Sniffing auth channel...", success: true }])
+    setAttackSteps([{ label: "SCANNING_TRAFFIC", detail: "Sniffing auth channels...", success: true }])
     await new Promise(r => setTimeout(r, 600))
     setAttackPhase("exploiting")
-    setAttackSteps(prev => [...prev, { label: "INJECTING_EXPLOIT", detail: `${ATTACK_TYPES.find(a => a.key === attackType)?.label}`, success: true }])
+    setAttackSteps(prev => [...prev, { label: "INJECTING_EXPLOIT", detail: `${selectedAttack?.label}`, success: true }])
     await new Promise(r => setTimeout(r, 800))
 
     try {
-      let attackResp;
-      
       const apiFn = {
         "replay":                   attackApi.replay,
         "credential-theft":         attackApi.credentialTheft,
         "mitm":                     attackApi.mitm,
         "client-assertion-sub":    attackApi.clientAssertionSub,
         "proof-correlation":        attackApi.proofCorrelation,
-        "challenge-predictability": attackApi.challengePredictability,
+        "nonce-reuse": attackApi.nonceReuse,
       }[attackType]
-      const type = ATTACK_TYPES.find(a => a.key === attackType)?.auth || authType
-      const targetAuthType = type === "both" ? authType : type
-      attackResp = await apiFn(targetAuthType, token, agentId)
+
+      let oauth2Res = null;
+      let zkpRes = null;
+
+      if (targetAuth === "oauth2" || targetAuth === "both") {
+        if (oauth2HasToken) {
+          const agentId = resultsByAuth?.oauth2?.auth_info?.agent_id;
+          oauth2Res = await apiFn("oauth2", oauth2Token, agentId)
+        } else if (targetAuth === "both") {
+          oauth2Res = {
+            success: false,
+            message: "SKIPPED — OAuth2 agent has not sent a request yet. Chat with OAuth2 Agent first to capture token.",
+            details: { vulnerability: "Missing Token" }
+          }
+        }
+      }
+
+      if (targetAuth === "zkp" || targetAuth === "both") {
+        if (attackType === "nonce-reuse") {
+          // Standalone: hits /api/attacks/nonce-reuse directly, no prior ZKP token needed
+          zkpRes = await apiFn()
+        } else if (zkpHasToken) {
+          const agentId = resultsByAuth?.zkp?.auth_info?.agent_id;
+          zkpRes = await apiFn("zkp", zkpToken, agentId)
+        } else if (targetAuth === "both") {
+          zkpRes = {
+            success: false,
+            message: "SKIPPED — ZKP agent has not sent a request yet. Chat with ZKP Agent first to capture proof.",
+            details: { vulnerability: "Missing Proof" }
+          }
+        }
+      }
 
       setAttackPhase("extracting")
       await new Promise(r => setTimeout(r, 500))
-      setAttackSteps(prev => [...prev, {
-        label: attackResp.success ? "EXPLOIT_SUCCESS" : "EXPLOIT_BLOCKED",
-        detail: attackResp.message,
-        success: attackResp.success,
-      }])
-      setAttackResult(attackResp)
+
+      if (targetAuth === "both") {
+        setAttackSteps(prev => [...prev, {
+          label: "EXPLOIT_COMPLETE",
+          detail: "Dual attack execution finished",
+          success: true,
+        }])
+        setCompareResult({
+           oauth2: { [attackType]: oauth2Res },
+           zkp: { [attackType]: zkpRes }
+        });
+      } else if (targetAuth === "oauth2") {
+        setAttackSteps(prev => [...prev, {
+          label: oauth2Res.success ? "EXPLOIT_SUCCESS" : "EXPLOIT_BLOCKED",
+          detail: oauth2Res.message,
+          success: oauth2Res.success,
+        }])
+        setAttackResult(oauth2Res)
+      } else if (targetAuth === "zkp") {
+        setAttackSteps(prev => [...prev, {
+          label: zkpRes.success ? "EXPLOIT_SUCCESS" : "EXPLOIT_BLOCKED",
+          detail: zkpRes.message,
+          success: zkpRes.success,
+        }])
+        setAttackResult(zkpRes)
+      }
+
       setAttackPhase("done")
     } catch (err) {
       setErrorFlash(true)
@@ -397,48 +492,12 @@ export default function AttackPanel() {
       setAttackSteps(prev => [...prev, { label: "INTERNAL_ERROR", detail: err.message, success: false }])
       setAttackPhase("done")
     }
-  }, [attackType, authType, token, agentId, hasToken])
-
-  const executeCompareAttack = useCallback(async () => {
-    const oauth2 = resultsByAuth?.oauth2?.auth_info?.token || null
-    const zkp    = resultsByAuth?.zkp?.auth_info?.proof    || null
-    if (!oauth2 && !zkp) return
-
-    setAttackPhase("scanning")
-    setCompareResult(null)
-    setAttackSteps([])
-    setAttackSteps([{ label: "DUAL_CHANNEL_LOCK", detail: "Intercepting OAuth2 & ZKP...", success: true }])
-    await new Promise(r => setTimeout(r, 600))
-    setAttackPhase("exploiting")
-    setAttackSteps(prev => [...prev, {
-      label: "BATCH_VULNERABILITY_TEST",
-      detail: "Mass testing across captured tokens...",
-      success: true,
-    }])
-    await new Promise(r => setTimeout(r, 1000))
-
-    try {
-      const resp = await attackApi.compare(oauth2, zkp)
-      setAttackPhase("extracting")
-      await new Promise(r => setTimeout(r, 400))
-      setCompareResult(resp.data)
-      setAttackPhase("done")
-    } catch (err) {
-      setErrorFlash(true)
-      setTimeout(() => setErrorFlash(false), 500)
-      setAttackSteps(prev => [...prev, { label: "ANALYSIS_FAILED", detail: err.message, success: false }])
-      setAttackPhase("done")
-    }
-  }, [resultsByAuth])
+  }, [attackType, oauth2Token, zkpToken, oauth2HasToken, zkpHasToken, resultsByAuth])
 
   const handleExecute = useCallback(() => {
     resetPanels()
-    if (analysisMode === "compare") {
-      executeCompareAttack()
-    } else {
-      executeSingleAttack()
-    }
-  }, [analysisMode, executeSingleAttack, executeCompareAttack, resetPanels])
+    executeAttack()
+  }, [executeAttack, resetPanels])
 
   const handleKeyDown = (e) => {
     if (attackPhase !== "idle" && attackPhase !== "done") return
@@ -454,18 +513,26 @@ export default function AttackPanel() {
     setAttackType(ATTACK_TYPES[nextIndex].key); resetPanels();
   }
 
-  const canExecute = analysisMode === "compare" ? hasEitherToken : hasToken
+  const selectedTargetAuth = ATTACK_TYPES.find(a => a.key === attackType)?.auth || "oauth2"
+  const canExecute = selectedTargetAuth === "both"
+    ? (oauth2HasToken || zkpHasToken)
+    : selectedTargetAuth === "oauth2" ? oauth2HasToken
+    : attackType === "nonce-reuse" ? true  // standalone demo with own vulnerable token
+    : zkpHasToken
 
   return (
     <div className="attack-terminal-root">
       <style>{`
         .attack-terminal-root {
-          --terminal-bg: #09090b;
-          --terminal-border: #18181b;
+          --terminal-bg: #f4f4f5;
+          --terminal-border: #d4d4d8;
           --terminal-accent: #ef4444;
           --terminal-secure: #10b981;
-          --terminal-text: #f4f4f5;
-          --terminal-muted: #52525b;
+          --terminal-text: #18181b;
+          --terminal-muted: #a1a1aa;
+          --terminal-card-bg: #ffffff;
+          --terminal-led-bg: rgba(239,68,68,0.08);
+          --terminal-led-secure-bg: rgba(16,185,129,0.08);
           display: grid;
           grid-template-columns: 320px 1fr;
           height: calc(100dvh - var(--navbar-height));
@@ -476,34 +543,29 @@ export default function AttackPanel() {
           overflow: hidden;
           position: relative;
         }
-        .attack-terminal-root::after {
-          content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
-          background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), 
-                      linear-gradient(90deg, rgba(255, 0, 0, 0.005), rgba(0, 255, 0, 0.002), rgba(0, 0, 255, 0.005));
-          z-index: 1000; background-size: 100% 4px, 3px 100%; pointer-events: none;
-        }
         .mission-control {
           border-right: 1px solid var(--terminal-border); padding: 24px;
-          overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: #0c0c0e;
+          overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: var(--terminal-card-bg);
         }
         .data-stream {
           padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
           border: 1px solid transparent; transition: border-color 0.2s ease;
+          background: var(--terminal-bg);
         }
         @keyframes border-flash {
-          0% { border-color: var(--terminal-accent); box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.1); }
+          0% { border-color: var(--terminal-accent); box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.15); }
           100% { border-color: transparent; box-shadow: none; }
         }
         .error-flash { animation: border-flash 0.6s var(--ease-out); }
         .status-led { animation: led-pulse 2s infinite var(--ease-in-out); }
         @keyframes led-pulse { 0%, 100% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } }
-        .attack-listbox { display: flex; flex-direction: column; border: 1px solid var(--terminal-border); background: rgba(0, 0, 0, 0.3); outline: none; transition: border-color 0.2s ease; border-radius: 4px; overflow: hidden; }
+        .attack-listbox { display: flex; flex-direction: column; border: 1px solid var(--terminal-border); background: rgba(0,0,0,0.03); outline: none; transition: border-color 0.2s ease; border-radius: 4px; overflow: hidden; }
         .attack-listbox:focus { border-color: var(--terminal-accent); }
-        .attack-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: none; background: transparent; color: var(--terminal-text); font-family: inherit; font-size: 11px; text-align: left; transition: all 0.15s var(--ease-out); border-bottom: 1px solid rgba(255,255,255,0.02); }
-        .attack-item.selected { background: var(--terminal-accent); color: #000; }
+        .attack-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: none; background: transparent; color: var(--terminal-text); font-family: inherit; font-size: 11px; text-align: left; transition: all 0.15s var(--ease-out); border-bottom: 1px solid rgba(0,0,0,0.04); }
+        .attack-item.selected { background: var(--terminal-accent); color: #fff; }
         .terminal-button { background: transparent; border: 1px solid var(--terminal-border); color: var(--terminal-text); padding: 12px 20px; text-align: center; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: all 0.2s var(--ease-spring); border-radius: 4px; letter-spacing: 1px; }
-        .primary-action { background: var(--terminal-accent); color: #000; border-color: var(--terminal-accent); }
-        .primary-action:disabled { color: var(--terminal-muted); border-color: var(--terminal-border); cursor: not-allowed; opacity: 0.3; background: transparent; }
+        .primary-action { background: var(--terminal-accent); color: #fff; border-color: var(--terminal-accent); }
+        .primary-action:disabled { color: var(--terminal-muted); border-color: var(--terminal-border); cursor: not-allowed; opacity: 0.4; background: transparent; }
       `}</style>
 
       <div className="mission-control">
@@ -513,7 +575,7 @@ export default function AttackPanel() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Signal Lock</div>
-          <div style={{ padding: "12px", border: "1px solid var(--terminal-border)", background: "rgba(255,255,255,0.01)", fontSize: "10px", borderRadius: "4px" }}>
+          <div style={{ padding: "12px", border: "1px solid var(--terminal-border)", background: "rgba(0,0,0,0.03)", fontSize: "10px", borderRadius: "4px" }}>
             <div style={{ color: oauth2HasToken ? "var(--terminal-accent)" : "var(--terminal-muted)", display: "flex", gap: "8px", alignItems: "center" }}>
               <span style={{ fontSize: "12px" }}>{oauth2HasToken ? "●" : "○"}</span> <span>OAUTH2_LINK_ACTIVE</span>
             </div>
@@ -524,26 +586,6 @@ export default function AttackPanel() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Analysis Mode</div>
-          <div style={{ display: "flex", gap: "4px" }}>
-            <button 
-              className={`terminal-button ${analysisMode === 'single' ? 'primary-action' : ''}`}
-              style={{ flex: 1, fontSize: '10px', padding: '8px' }}
-              onClick={() => { setAnalysisMode('single'); resetPanels(); }}
-            >
-              Single
-            </button>
-            <button 
-              className={`terminal-button ${analysisMode === 'compare' ? 'primary-action' : ''}`}
-              style={{ flex: 1, fontSize: '10px', padding: '8px' }}
-              onClick={() => { setAnalysisMode('compare'); resetPanels(); }}
-            >
-              Side-by-Side
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", opacity: analysisMode === 'compare' ? 0.3 : 1, pointerEvents: analysisMode === 'compare' ? 'none' : 'auto' }}>
           <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Vector Select</div>
           <div className="attack-listbox" role="listbox" tabIndex={0} onKeyDown={handleKeyDown} ref={listboxRef} style={{ minHeight: "220px" }}>
             {ATTACK_TYPES.map(({ key, label, auth }) => (
@@ -575,25 +617,8 @@ export default function AttackPanel() {
         {attackPhase === "scanning" && <Oscilloscope />}
 
         {attackPhase === "idle" && !attackResult && !compareResult && (
-          <div style={{ padding: "60px 40px", textAlign: "center", border: "1px dashed var(--terminal-border)", color: "var(--terminal-muted)", fontSize: "12px", borderRadius: "4px", background: "rgba(0,0,0,0.1)" }}>
+          <div style={{ padding: "60px 40px", textAlign: "center", border: "1px dashed var(--terminal-border)", color: "var(--terminal-muted)", fontSize: "12px", borderRadius: "4px", background: "rgba(0,0,0,0.02)" }}>
             {">"} STANDBY... SELECT VECTOR TO BEGIN PENETRATION TEST
-          </div>
-        )}
-
-        {analysisMode !== "compare" && hasToken && attackPhase === "idle" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "rgba(255,255,255,0.01)", padding: "12px", border: "1px solid var(--terminal-border)", borderRadius: "4px" }}>
-            <div style={{ display: "inline-block", padding: "2px 8px", background: "var(--terminal-muted)", borderRadius: "2px", fontSize: "9px", width: "fit-content", color: "#000", fontWeight: 900 }}>
-              {authType.toUpperCase()}_SNIFFED
-            </div>
-            <div style={{ fontSize: "10px", color: "var(--terminal-muted)", wordBreak: "break-all", opacity: 0.6, fontFamily: "var(--font-mono)" }}>
-              {token.slice(0, 160)}...
-            </div>
-          </div>
-        )}
-
-        {analysisMode === "compare" && hasEitherToken && attackPhase === "idle" && (
-          <div style={{ padding: "60px 40px", textAlign: "center", border: "1px dashed var(--terminal-border)", color: "var(--terminal-secure)", fontSize: "12px", borderRadius: "4px", background: "rgba(0,0,0,0.1)" }}>
-            {">"} MULTI_CHANNEL_SIGNAL_LOCKED... READY FOR FULL COMPARISON TEST
           </div>
         )}
 
@@ -604,8 +629,19 @@ export default function AttackPanel() {
             <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", borderBottom: "1px solid var(--terminal-border)", paddingBottom: "6px", fontWeight: 800, letterSpacing: "1px" }}>
               Post-Exploitation Analysis
             </div>
-            {analysisMode !== "compare" && attackResult && <ForensicsReadout result={attackResult} />}
-            {analysisMode === "compare" && compareResult && <CompareCard oauth2Results={compareResult.oauth2} zkpResults={compareResult.zkp} />}
+            {attackResult && <ForensicsReadout result={attackResult} capturedOauth2Token={oauth2Token} capturedZkpProof={zkpToken} />}
+            {compareResult && (
+               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                 <div>
+                   <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "6px", textTransform: "uppercase" }}>[OAUTH2_SUBSYSTEM]</div>
+                   {compareResult.oauth2 && <ForensicsReadout result={compareResult.oauth2[attackType]} capturedOauth2Token={oauth2Token} capturedZkpProof={zkpToken} />}
+                 </div>
+                 <div>
+                   <div style={{ fontSize: "9px", fontWeight: 800, color: "var(--terminal-muted)", marginBottom: "6px", textTransform: "uppercase" }}>[ZKP_SUBSYSTEM]</div>
+                   {compareResult.zkp && <ForensicsReadout result={compareResult.zkp[attackType]} capturedOauth2Token={oauth2Token} capturedZkpProof={zkpToken} />}
+                 </div>
+               </div>
+            )}
           </div>
         )}
       </div>
