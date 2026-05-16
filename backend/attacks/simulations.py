@@ -318,13 +318,15 @@ async def mitm_attack(request: AttackRequest):
             # Fallback: use proof/token2 passed from frontend
             if not captured_proof:
                 captured_proof = request.token2 or "zkp_proof_from_wire"
-            if not captured_password:
-                captured_password = "VictimAgentPassword123 (Captured during unencrypted registration)"
+            # Note: password is NEVER transmitted over wire in ZKP Schnorr.
+            # captured_password is here to illustrate that registration/agent-
+            # lifecycle calls (not ZKP auth) may expose secrets if mTLS absent.
+            captured_password = "(Password never sent over wire — ZKP proves without transmitting secret. Registration/auth setup calls may differ.)"
 
             details = {
                 "intercepted_data": {
                     "captured_proof": captured_proof,
-                    "captured_password": captured_password,
+                    "captured_password_note": captured_password,
                 },
                 "attack_successful": True,
                 "impact": "MITM proxy captures the agent's proof and agent lifecycle secrets during registration.",
@@ -636,7 +638,7 @@ async def nonce_reuse_attack(request: AttackRequest):
         success=match,
         message="SUCCESS — x recovered from two proofs sharing nonce r" if match else "FAILED",
         details={
-            "vulnerability": "7. Nonce Reuse: Schnorr signature broken if nonce r is repeated",
+            "vulnerability": "6. Nonce Reuse: Schnorr signature broken if nonce r is repeated",
             "attack_logic": {
                 "root_cause": "r reused across two proofs with different challenges c1 ≠ c2",
                 "formula": "s1 - s2 = (c1 - c2)·x  →  x = (s1 - s2) · inv(c1 - c2) mod q",
