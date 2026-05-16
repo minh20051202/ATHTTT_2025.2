@@ -6,8 +6,7 @@ const ATTACK_TYPES = [
   { key: "credential-theft", label: "1. Credential Theft via Logs", auth: "both", desc: "Bearer tokens or secrets stolen from AI agent conversation logs or context" },
   { key: "mitm",             label: "2. TLS Interception / MITM",   auth: "both", desc: "Proxy intercepts credentials in transit via TLS downgrade or inspection" },
   { key: "replay",           label: "3. Token Replay",               auth: "oauth2", desc: "Reuse captured bearer token until expiry" },
-  { key: "client-assertion-sub", label: "4. Client Assertion Substitution", auth: "oauth2", desc: "Forge assertions impersonating another agent by modifying JWT claims" },
-  { key: "nonce-reuse", label: "5. Nonce Reuse Attack", auth: "zkp", desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
+  { key: "nonce-reuse", label: "4. Nonce Reuse Attack", auth: "zkp", desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
 ]
 
 /* ─── Status LED pulsing pixel ─── */
@@ -392,8 +391,6 @@ export default function AttackPanel() {
         "replay":                   attackApi.replay,
         "credential-theft":         attackApi.credentialTheft,
         "mitm":                     attackApi.mitm,
-        "client-assertion-sub":    attackApi.clientAssertionSub,
-        "proof-correlation":        attackApi.proofCorrelation,
         "nonce-reuse": attackApi.nonceReuse,
       }[attackType]
 

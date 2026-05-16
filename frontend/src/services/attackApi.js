@@ -23,17 +23,6 @@ export const attackApi = {
   mitm: (authType, token, agentId) =>
     runAttack({ authType, token, attackType: 'mitm', agentId }),
 
-  clientAssertionSub: (authType, token, agentId) =>
-    runAttack({ authType, token, attackType: 'client-assertion-sub', agentId }),
-
-  proofCorrelation: (authType, token, agentId) =>
-    runAttack({ authType, token, attackType: 'proof-correlation', agentId }),
-
-  challengePredictability: (authType, token, agentId) =>
-    runAttack({ authType, token, attackType: 'challenge-predictability', agentId }),
-
-  // NONCE-REUSE ATTACK: Schnorr broken if nonce r is reused across proofs
-  // POST /api/attacks/nonce-reuse (body fields required by AttackRequest schema)
   nonceReuse: () =>
     api.post('/attacks/nonce-reuse', {
       auth_type: 'zkp',
@@ -45,7 +34,5 @@ export const attackApi = {
     api.post('/attacks/compare', {
       oauth2_token: oauth2Token,
       zkp_token: zkpToken,
-      // Note: The compare endpoint in python accepts CompareRequest which currently
-      // doesn't take agent_id. If needed, we'd update CompareRequest.
     }),
 }
