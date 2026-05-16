@@ -9,6 +9,7 @@ import time
 import json
 import hashlib
 import re
+import secrets
 
 
 router = APIRouter(prefix="/api/attacks", tags=["attacks"])
@@ -590,6 +591,8 @@ async def nonce_reuse_attack(request: AttackRequest):
       3. Sign with deterministic nonce (RFC 6979: r = HMAC(k, H(m)) never repeats)
     """
     import time
+    import secrets
+    from ..auth.zkp import _DHP, _DHQ, _DHG
     attack_start = time.time()
 
     # Generate honest Schnorr context using the same domain params as real ZKP
@@ -605,7 +608,6 @@ async def nonce_reuse_attack(request: AttackRequest):
 
     # Secret x (agent's private key — the attacker's target)
     # Same keypair used in the SEED (hardcoded for demo reproducibility)
-    from ..auth.zkp import _DHP, _DHQ, _DHG
     x_secret = int("deadbeef1234567890abcdef", 16) % _DHQ
 
     s1 = (r + c1 * x_secret) % _DHQ
