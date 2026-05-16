@@ -354,23 +354,8 @@ async def mitm_attack(request: AttackRequest):
         elif request.auth_type == "zkp":
             timing["interception"] = time.time() - attack_start
 
-            captured_proof = None
-            captured_password = None
-            for entry in settings.proxy_buffer:
-                body = entry.get("body", {})
-                if body.get("zkp_proof"):
-                    captured_proof = body.get("zkp_proof")
-                if body.get("password"):
-                    captured_password = body.get("password")
-
-            # Fallback: use proof/token2 passed from frontend
-            if not captured_proof:
-                captured_proof = request.token2 or "zkp_proof_from_wire"
-
             details = {
-                "intercepted_data": {
-                    "captured_proof": captured_proof,
-                },
+                "vulnerability": "2. TLS Interception / MITM: ZKP proof transmitted in plaintext on vulnerable connection",
                 "attack_successful": True,
                 "impact": "MITM proxy captures the ZKP proof (commitment t and response s). The secret x is not exposed — but the proof is single-use anyway.",
                 "reason": "ZKP authentication transmits proof only — no secret on wire. However, registration/agent-lifecycle calls may differ.",
