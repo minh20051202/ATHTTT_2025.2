@@ -118,24 +118,72 @@ async def replay_attack(request: AttackRequest):
 
         elif request.auth_type == "zkp":
             try:
-                from ..api.chat import _challenge_store
+                from ..api.chat import extract_and_execute, ChatRequest
+                from fastapi import Request
+                from ..db.models import get_db
+
                 timing = {}
                 attack_start = time.time()
-                token_present = request.token in _challenge_store
-                timing["check"] = time.time() - attack_start
 
+                # Determine agent_id — prefer explicitly passed, else parse from token if provided
+                agent_id = request.agent_id
+                if not agent_id and request.token:
+                    # token is the consumed challenge token — we still need an agent_id
+                    # to formulate a valid request. Grab any ZKP agent from the DB.
+                    from ..db.models import Agent
+                    db = next(get_db())
+                    zkp_agent = db.query(Agent).filter(Agent.auth_type == "zkp").first()
+                    agent_id = zkp_agent.id if zkp_agent else 1
+
+                # Mock request — no Authorization header (ZKP path)
+                scope = {"type": "http", "headers": []}
+                mock_request = Request(scope)
+
+                # Use the CONSUMED token — real endpoint will reject it
+                # The proof can be stale/invalid; the token check fires first
+                chat_req = ChatRequest(
+                    message="show attack log",
+                    agent_id=agent_id or 1,
+                    zkp_token=request.token or "consumed-token-xxxx",
+                    zkp_proof=request.token2 or '{"t":"deadbeef","s":"feedface"}',
+                )
+
+                db = next(get_db())
+                # Actually hit the protected endpoint — real enforcement rejects consumed token
+                intent_response = await extract_and_execute(request=chat_req, http_request=mock_request, db=db)
+
+                # If we get here something is wrong (token was not actually consumed)
+                timing["verification"] = time.time() - attack_start
                 details = {
-                    "vulnerability": "3. Token Replay: ZKP challenge replay is blocked by server-side state",
-                    "token_already_consumed": True,
-                    "replay_result": "PROOF REJECTED — Challenge token consumed on first use",
-                    "countermeasure": "Atomic delete-verify pattern ensures one-time challenge use. Replay is mathematically impossible even with an identical proof.",
+                    "vulnerability": "3. Token Replay: ZKP challenge token still valid (unexpected)",
+                    "token_already_consumed": False,
+                    "replay_result": "ACCESS GRANTED — Challenge token was not consumed",
+                    "attack_successful": True,
+                    "countermeasure": "Server-side token invalidation already in place.",
                 }
-
+                return AttackResponse(
+                    attack_type="replay",
+                    auth_type="zkp",
+                    success=True,
+                    message="UNEXPECTED — Challenge token still valid",
+                    details=details,
+                    timing=timing
+                )
+            except AppError as e:
+                timing["verification"] = time.time() - attack_start
+                # Real endpoint rejected the consumed token — this is the correct outcome
+                details = {
+                    "vulnerability": "3. Token Replay: ZKP challenge replay blocked by server — token consumed",
+                    "token_already_consumed": True,
+                    "replay_result": f"REJECTED — {e.message}",
+                    "attack_successful": False,
+                    "countermeasure": "Atomic delete-verify pattern: token deleted immediately after use. Replay mathematically impossible — server enforces this on every request.",
+                }
                 return AttackResponse(
                     attack_type="replay",
                     auth_type="zkp",
                     success=False,
-                    message="N/A — Challenge replay BLOCKED; token was consumed on first use",
+                    message="REJECTED — Challenge token consumed. Real endpoint confirmed.",
                     details=details,
                     timing=timing
                 )
