@@ -364,12 +364,9 @@ async def mitm_attack(request: AttackRequest):
                 captured_credential = request.token or "zkp_token_from_wire"
 
             details = {
-                "intercepted_data": {
-                    "captured_credential": captured_credential,
-                },
                 "attack_successful": True,
-                "impact": "MITM proxy captures the ZKP proof (commitment t and response s). The secret x is not exposed — but the proof is single-use anyway.",
-                "reason": "ZKP authentication transmits proof only — no secret on wire. However, registration/agent-lifecycle calls may differ.",
+                "impact": "MITM proxy captures the ZKP token (challenge session ID). The secret x is never transmitted.",
+                "reason": "ZKP auth sends zkp_token + zkp_proof. Token is interceptable; proof alone is useless without the secret.",
                 "countermeasure": "mTLS + TLS 1.3 pinning prevents traffic inspection by intermediaries."
             }
 
