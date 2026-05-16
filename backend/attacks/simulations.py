@@ -357,16 +357,13 @@ async def mitm_attack(request: AttackRequest):
             captured_credential = None
             for entry in settings.proxy_buffer:
                 body = entry.get("body", {})
-                if body.get("zkp_token"):
-                    captured_credential = body.get("zkp_token")
+                if body.get("zkp_proof"):
+                    captured_credential = body.get("zkp_proof")
 
             if not captured_credential:
-                captured_credential = request.token or "zkp_token_from_wire"
+                captured_credential = request.token2 or "zkp_proof_from_wire"
 
             details = {
-                "intercepted_data": {
-                    "captured_credential": captured_credential,
-                },
                 "attack_successful": True,
                 "impact": "MITM proxy captures the ZKP token (challenge session ID). The secret x is never transmitted.",
                 "reason": "ZKP auth sends zkp_token + zkp_proof. Token is interceptable; proof alone is useless without the secret.",
