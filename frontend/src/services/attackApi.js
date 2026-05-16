@@ -33,9 +33,13 @@ export const attackApi = {
     runAttack({ authType, token, attackType: 'challenge-predictability', agentId }),
 
   // NONCE-REUSE ATTACK: Schnorr broken if nonce r is reused across proofs
-  // POST /api/attacks/nonce-reuse (empty body, self-contained algebraic demo)
+  // POST /api/attacks/nonce-reuse (body fields required by AttackRequest schema)
   nonceReuse: () =>
-    api.post('/attacks/nonce-reuse', {}).then(r => r.data),
+    api.post('/attacks/nonce-reuse', {
+      auth_type: 'zkp',
+      token: 'nonce-reuse-demonstration',
+      attack_type: 'nonce-reuse',
+    }).then(r => r.data),
 
   compare: (oauth2Token, zkpToken, oauth2AgentId, zkpAgentId) =>
     api.post('/attacks/compare', {
