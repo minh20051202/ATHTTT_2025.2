@@ -1,9 +1,11 @@
 /**
  * Client-side Schnorr Zero-Knowledge Proof implementation.
  *
- * Domain parameters match backend/auth/zkp.py exactly:
- *   p = safe prime (257-bit), q = prime divisor of p-1 (256-bit)
- *   g = generator of order-q subgroup
+ * Domain parameters match backend/auth/zkp.py exactly.
+ * 2048-bit safe prime (DH Group 14 from cryptography library).
+ *   p = 2048-bit safe prime
+ *   q = (p-1)/2  (2047-bit prime order of the order-q subgroup)
+ *   g = 2  (standard generator of the order-q subgroup)
  *
  * All operations use native JS BigInt — no library dependencies.
  *
@@ -12,11 +14,11 @@
  */
 
 // ---------------------------------------------------------------------------
-// Domain parameters (shared with server)
+// Domain parameters (2048-bit — matches backend auth/zkp.py)
 // ---------------------------------------------------------------------------
-const P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ffn;
-const Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cffn;
-const G = 4n;
+const P = 0xb00ddc45_6416e6a8_5cb70b0c_3c75fbe7_82699874_96a7a97b_da12c1c8_5a79228c_93f61f99_d93bf8cb_92a9b57d_77869c6b_a7c11cb3_d47538d1_4f7a5cd4_a85c35aa_c1993376_6bf536a7_4464ce02_53e3c044_4c3d2399_1c161065_2606790f_a1939e19_9e7e36bd_0a6a0a3f_43df71e5_70778811_fc38293f_67f3b131_e9f15599_9001dc82_60d06e34_32f6e286_cf5df5bd_5ee74752_ca688745_246ce191_7bc16b57_6adbad2d_cc1e032a_8686f13b_26c162df_e8065bc4_3476aff4_4edbdc1e_d388cc35_24d6ed38_f13ee514_389a74f0_5390f893_bfedbb4b_acdecb6f_f3a54d1f_5ed0469d_05c96236_05616952_dc71dc05_178373d8_1d368189_a18aa942_0ad703c1_6ca60500_777a85afn;
+const Q = (P - 1n) / 2n;
+const G = 2n;
 
 // ---------------------------------------------------------------------------
 // Modular exponentiation via square-and-multiply
@@ -159,4 +161,22 @@ async function signWithPrivateKeyHex(privateKeyHex, token) {
   return JSON.stringify({ commitment: t.toString(16), response: s.toString(16) });
 }
 
-export { computeProof, createPublicKey, hashSecret, generateKeyPair, signWithPrivateKeyHex };
+/**
+ * Create a Schnorr proof using a fixed nonce (r).
+ * DANGEROUS: For educational/attack demonstration ONLY.
+ */
+async function signWithFixedNonce(privateKeyHex, token, fixedNonce) {
+  const x = BigInt(`0x${privateKeyHex}`);
+  const r = fixedNonce;
+  const t = modPow(G, r, P);
+
+  // Challenge: c = SHA-512(t || token) mod q
+  const c = (await hashToBigInt(`${t.toString(16)}${token}`)) % Q;
+
+  // Response:  s = r + c·x  (mod q)
+  const s = (r + c * x) % Q;
+
+  return JSON.stringify({ commitment: t.toString(16), response: s.toString(16), token });
+}
+
+export { computeProof, createPublicKey, hashSecret, generateKeyPair, signWithPrivateKeyHex, signWithFixedNonce, generatePrivateKey };

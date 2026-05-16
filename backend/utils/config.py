@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     zkp_secret_key: str = "your_zkp_secret_key_here"
 
     # Attack Simulation Settings
-    strict_assertion_check: bool = True
+    strict_assertion_check: bool = False  # Default vulnerable; set True for secure mode
     vulnerable_rng: bool = False
 
     # Environment

@@ -3,6 +3,7 @@ import pytest
 
 class TestChatEndpoint:
     """Integration tests for the /api/chat/intent endpoint."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def _get_oauth2_token(self, client, agent):
         """Helper: get OAuth2 access token via client_assertion flow."""
@@ -201,13 +202,14 @@ def test_zkp_challenge_store_cleanup(client, db, demo_user):
     from backend.db.models import Agent
 
     # Simulate client-side keypair generation: random private key, public key computed locally
-    P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-    Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
-    G = 4
+    from backend.auth import zkp as zkp_module
+    P = zkp_module._DHP
+    Q = zkp_module._DHQ
+    G = zkp_module._DHG
     private_key_int = secrets.randbelow(Q)
     public_key_int = pow(G, private_key_int, P)
     public_key_json = _json.dumps({
-        "y": public_key_int, "p": P, "g": G, "q": Q,
+        "y": format(public_key_int, 'x'), "p": format(P, 'x'), "g": format(G, 'x'), "q": format(Q, 'x'),
     })
 
     zkp_agent = Agent(

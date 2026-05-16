@@ -678,7 +678,7 @@ async def nonce_reuse_attack(request: AttackRequest):
         success=match,
         message="SUCCESS — x recovered from two proofs sharing nonce r" if match else "FAILED",
         details={
-            "vulnerability": "6. Nonce Reuse: Schnorr signature broken if nonce r is repeated",
+            "vulnerability": "Nonce Reuse: Schnorr signature broken if nonce r is repeated",
             "attack_logic": {
                 "root_cause": "r reused across two proofs with different challenges c1 ≠ c2",
                 "formula": "s1 - s2 = (c1 - c2)·x  →  x = (s1 - s2) · inv(c1 - c2) mod q",

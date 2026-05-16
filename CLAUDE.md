@@ -8,7 +8,7 @@
 - **Stack:** FastAPI backend · React/Vite frontend · SQLite + SQLAlchemy
 - **Entry:** `backend/main.py` (FastAPI app) · `frontend/src/App.jsx` (React root)
 - **Seed:** `POST /api/demo/seed` creates demo user, OAuth2 agent, ZKP agent, 4 products
-- **Run backend:** `./start-backend.sh` (kills existing backend, starts fresh on port 8000, sets PYTHONPATH and uses `backend.main:app` module path)
+- **Run backend:** `.make backend`
 - **Test backend:** `curl http://localhost:8000/health`
 - **Run frontend:** `cd frontend && npm install && npm run dev`
 - **DB:** `backend/utils/config.py` sets `database_url: str = "sqlite:///./agentic_commerce.db"` — resolve relative to backend CWD (run from `backend/` or project root, not a different directory)
@@ -38,6 +38,7 @@ frontend/src/           backend/
 **No shared auth abstraction.** Each `agent.auth_type` routes directly.
 
 ### OAuth2 PKJWT (per-agent RS256)
+
 - Agent stores `oauth2_private_key` (PKCS8) + `public_key` (SPKI) in DB
 - Token endpoint signs access tokens with agent's own `oauth2_private_key` (RS256)
 - `/api/chat/intent` verifies with `agent.public_key` (asymmetric — compromised key in one agent ≠ others)
@@ -45,12 +46,14 @@ frontend/src/           backend/
 - `_agentConfig` in `chatApi.js` is null until `setAgentConfig()` runs — guard OAuth2 sends with `oauth2TokenAcquired` state
 
 ### ZKP Schnorr (server never sees secret)
+
 - Server stores only public key, never the password
 - Challenge token: UUID v4, 60s TTL, single-use (deleted after verification)
 - Client computes proof locally; server verifies with stored public key only
 - `backend/auth/zkp.py` + `frontend/src/lib/zkp.js` implement the protocol
 
 ### Agent Model Invariant
+
 ```
 ZKP agent:  public_key=set,  oauth2_private_key=NULL
 OAuth2 agent: oauth2_private_key=set, public_key=set

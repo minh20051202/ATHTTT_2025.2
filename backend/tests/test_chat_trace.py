@@ -48,6 +48,7 @@ def get_zkp_token_and_proof(client: TestClient, agent) -> tuple[str, str]:
 
 class TestOAuth2ChatTrace:
     """Verify OAuth2 /intent response shape for ChatTrace components."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def test_intent_response_auth_info_shape_oauth2(self, client, oauth2_pkjwt_agent):
         """OAuth2 /intent response includes all fields ActionLog/MetricsPanel need."""
@@ -132,6 +133,7 @@ class TestOAuth2ChatTrace:
 
 class TestZKPChatTrace:
     """Verify ZKP /intent response shape for ChatTrace components."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def test_intent_response_auth_info_shape_zkp(self, client, zkp_agent):
         """ZKP /intent response includes proof_info needed for ActionLog display."""

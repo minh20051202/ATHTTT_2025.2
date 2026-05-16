@@ -1,357 +1,212 @@
-/**
- * ActionLog — real-time authentication step log with staggered animation.
- * Shows fixed taxonomy of steps for OAuth2 vs ZKP + expandable payloads.
- * Remounts when authType changes (via key prop from parent ChatTrace).
- */
 import { useState, useEffect, useRef } from 'react'
-import { getTokenState } from '../services/authApi.js'
+import { getAccessToken } from '../services/authApi.js'
 
-// ---------------------------------------------------------------------------
-// Step builders
-// ---------------------------------------------------------------------------
-
-function buildOAuth2Steps({ credentials, auth_info, timing }) {
-  const tokenState = getTokenState()
+async function buildOAuth2StepsFull({ oauth2Credentials, latestResult, fetchToken }) {
   const steps = []
-
-  if (tokenState.hasToken && !tokenState.expired && credentials?.tokenExpAt) {
-    const remaining = Math.max(0, Math.round((credentials.tokenExpAt - Date.now()) / 1000))
-    steps.push({
-      type: 'agent',
-      badge: 'AGENT',
-      label: `Using cached token (expires in ${remaining}s)`,
-    })
-  } else {
-    steps.push({
-      type: 'agent',
-      badge: 'AGENT',
-      label: 'POST /api/auth/oauth2/token — client_assertion signed (RS256)',
-    })
-  }
-
-  const bearer = credentials?.bearerToken || ''
   steps.push({
+    phase: 'CLIENT_ASSERTION',
     type: 'agent',
-    badge: 'AGENT',
-    label: `Authorization: Bearer ${bearer.slice(0, 20)}...`,
+    label: 'Build client_assertion JWT',
+    detail: '{ iss: id, sub: id, aud: server, exp: now+5m }',
+    mono: true,
+  })
+  steps.push({
+    phase: 'CLIENT_ASSERTION',
+    type: 'agent',
+    label: 'Sign with RSA-2048 (RS256)',
+    detail: 'RSASSA-PKCS1-v1_5 + SHA-256',
+    mono: true,
+  })
+  steps.push({
+    phase: 'TOKEN_REQUEST',
+    type: 'agent',
+    label: 'POST /oauth2/token',
+    detail: 'Exchange assertion for access token',
+  })
+  const bearerToken = await fetchToken()
+  steps.push({
+    phase: 'API_CALL',
+    type: 'agent',
+    label: 'Authorization: Bearer <token>',
+    detail: `Token size: ${bearerToken?.length || 0} bytes`,
+    token: bearerToken,
   })
 
-  steps.push({
-    type: 'agent',
-    badge: 'AGENT',
-    label: 'POST /api/chat/intent',
-  })
-
-  // Server steps from response
-  if (auth_info?.token_info) {
+  const authInfo = latestResult?.auth_info
+  if (authInfo?.token_info?.payload) {
     steps.push({
+      phase: 'SERVER_VERIFY',
       type: 'server',
-      badge: 'SERVER',
-      label: `verify_token (HS256) → {sub: "${auth_info.token_info.payload?.sub || '?'}", type: "oauth2"}`,
-      payload: auth_info.token_info,
-      expandable: true,
+      label: 'Verify HS256 JWT',
+      detail: `Verification time: ${(authInfo.verification_time * 1000).toFixed(2)}ms`,
+      payload: authInfo.token_info,
+      expandable: true
     })
   }
-
-  const intentLabel = timing?.intent_extraction != null
-    ? `intent_extraction → {action} (${Math.round(timing.intent_extraction * 1000)}ms)`
-    : 'intent_extraction'
-  steps.push({
-    type: 'server',
-    badge: 'SERVER',
-    label: intentLabel,
-  })
-
-  const execLabel = timing?.execution != null
-    ? `tool_call → (${Math.round(timing.execution * 1000)}ms)`
-    : 'tool_call'
-  steps.push({
-    type: 'server',
-    badge: 'SERVER',
-    label: execLabel,
-  })
-
   return steps
 }
 
-function buildZKPSteps({ credentials, auth_info, timing }) {
+function buildZKPStepsFull({ zkpCredentials, latestResult }) {
   const steps = []
-
-  const agentId = credentials?.agentId || '?'
+  const authInfo = latestResult?.auth_info
   steps.push({
+    phase: 'CHALLENGE_REQUEST',
     type: 'agent',
-    badge: 'AGENT',
-    label: `GET /api/chat/zkp-challenge/${agentId}`,
+    label: 'GET /zkp-challenge',
+    detail: 'Request random UUID v4 challenge',
   })
-
   steps.push({
+    phase: 'PROOF_COMPUTE',
     type: 'agent',
-    badge: 'AGENT',
-    label: 'Computing ZKP proof: H(token‖public_key)...',
+    label: 'Compute t = g^r mod p',
+    detail: '2048-bit modular exponentiation',
+    mono: true,
   })
-
-  const proofSnippet = credentials?.zkpProof
-    ? credentials.zkpProof.slice(0, 20)
-    : ''
-
   steps.push({
+    phase: 'PROOF_COMPUTE',
     type: 'agent',
-    badge: 'AGENT',
-    label: `POST /api/chat/intent (zkp_token + zkp_proof: ${proofSnippet}...)`,
+    label: 'Compute s = r + c·x mod q',
+    detail: 'Schnorr non-interactive proof response',
+    mono: true,
   })
-
-  if (auth_info?.verification_time != null) {
-    const vt = Math.round(auth_info.verification_time * 1000)
+  if (authInfo) {
     steps.push({
+      phase: 'SERVER_VERIFY',
       type: 'server',
-      badge: 'SERVER',
-      label: `verify_proof (g^s ≡ t·y^c) → valid (${vt}ms)`,
+      label: 'Verify g^s ≡ t · y^c (mod p)',
+      detail: `Verification: ${(authInfo.verification_time * 1000).toFixed(1)}ms`,
     })
   }
-
-  const intentLabel = timing?.intent_extraction != null
-    ? `intent_extraction → {action} (${Math.round(timing.intent_extraction * 1000)}ms)`
-    : 'intent_extraction'
-  steps.push({
-    type: 'server',
-    badge: 'SERVER',
-    label: intentLabel,
-  })
-
-  const execLabel = timing?.execution != null
-    ? `tool_call → (${Math.round(timing.execution * 1000)}ms)`
-    : 'tool_call'
-  steps.push({
-    type: 'server',
-    badge: 'SERVER',
-    label: execLabel,
-  })
-
   return steps
 }
 
-// ---------------------------------------------------------------------------
-// Badge + row rendering
-// ---------------------------------------------------------------------------
-
-function Badge({ type, label }) {
+function Badge({ type }) {
   const isAgent = type === 'agent'
-  // AGENT badge uses primary blue (indigo); SERVER badge uses ZKP green
-  const bg = isAgent ? 'rgba(67,56,202,0.08)' : 'var(--color-zkp-muted)'
-  const color = isAgent ? 'var(--color-primary)' : 'var(--color-zkp)'
-  const borderColor = isAgent ? 'rgba(67,56,202,0.25)' : 'rgba(16,185,129,0.25)'
-
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '2px 9px',
-      borderRadius: '5px',
-      fontSize: '12px',
-      fontWeight: 700,
-      fontFamily: 'var(--font-mono)',
-      letterSpacing: '0.04em',
-      background: bg,
-      color,
-      border: `1px solid ${borderColor}`,
-      whiteSpace: 'nowrap',
-      flexShrink: 0,
-    }}>
-      {label}
+    <span className={`badge ${isAgent ? 'badge-oauth2' : 'badge-zkp'}`} style={{ minWidth: '60px', justifyContent: 'center' }}>
+      {isAgent ? 'CLIENT' : 'SERVER'}
     </span>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Single step row
-// ---------------------------------------------------------------------------
-
-function StepRow({ id, step, index, expanded, onToggle }) {
-  const isError = step.type === 'error'
-  const labelColor = isError ? 'var(--color-error)' : 'var(--color-text)'
-  const canExpand = step.expandable && step.payload
-
+function PhaseSeparator({ phase }) {
+  const labels = {
+    CLIENT_ASSERTION: 'Assertion Signing',
+    TOKEN_REQUEST: 'Token Exchange',
+    API_CALL: 'API Request',
+    SERVER_VERIFY: 'Verification',
+    CHALLENGE_REQUEST: 'Challenge',
+    PROOF_COMPUTE: 'Computation',
+    PROOF_SEND: 'Dispatch',
+    INTENT: 'Intent',
+    TOOL_CALL: 'Execution',
+  }
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
-        gap: 'var(--space-3)',
-        alignItems: 'start',
-        padding: '10px var(--space-3)',
-        borderBottom: '1px solid var(--color-border)',
-        opacity: 0,
-        transform: 'translateY(6px)',
-        animation: 'fadeSlideIn 0.4s ease-out both',
-        animationDelay: `calc(var(--step-index, 0) * 150ms)`,
-        '--step-index': index,
-        fontFamily: 'var(--font-mono)',
-        fontSize: '14px',
-        lineHeight: 1.5,
-      }}
-    >
-      {/* Badge */}
-      <Badge type={step.type} label={step.badge} />
+    <div style={{
+      padding: 'var(--space-2) var(--space-4)',
+      background: 'var(--color-surface)',
+      fontSize: '10px',
+      fontWeight: 800,
+      textTransform: 'uppercase',
+      color: 'var(--color-muted)',
+      borderBottom: '1px solid var(--color-border)',
+      letterSpacing: '0.05em'
+    }}>
+      {labels[phase] || phase}
+    </div>
+  )
+}
 
-      {/* Time + label */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-        <span style={{ color: labelColor, wordBreak: 'break-all' }}>
+function StepRow({ step, expanded, onToggle }) {
+  return (
+    <div style={{
+      padding: 'var(--space-3) var(--space-4)',
+      borderBottom: '1px solid var(--color-border)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <Badge type={step.type} />
+        <span className="font-mono" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text)' }}>
           {step.label}
         </span>
-        {expanded && canExpand && step.payload && (
-          <pre style={{
-            margin: '8px 0 0',
-            padding: 'var(--space-3)',
-            background: 'var(--color-bg)',
-            borderRadius: 'var(--border-radius-sm)',
-            fontSize: '13px',
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--color-muted)',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            border: '1px solid var(--color-border)',
-            overflow: 'auto',
-            maxHeight: '200px',
-          }}>
-            {JSON.stringify(step.payload, null, 2)}
-          </pre>
-        )}
       </div>
-
-      {/* Expand toggle */}
-      {canExpand && (
-        <button
-          onClick={() => onToggle(id)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--color-muted)',
-            cursor: 'pointer',
-            padding: '2px 4px',
-            fontSize: '13px',
-            fontFamily: 'var(--font-mono)',
-            flexShrink: 0,
-            lineHeight: 1.4,
-          }}
-          title={expanded ? 'Collapse' : 'Expand'}
-        >
-          {expanded ? '[−]' : '[+]'}
+      {step.detail && (
+        <div style={{ paddingLeft: '72px', fontSize: '11px', color: 'var(--color-muted)' }}>
+          {step.mono ? <code className="font-mono">{step.detail}</code> : step.detail}
+        </div>
+      )}
+      {step.expandable && (
+        <button onClick={onToggle} style={{ marginLeft: '72px', fontSize: '10px', color: 'var(--color-primary)', textAlign: 'left', fontWeight: 600 }}>
+          {expanded ? '[−] Hide Data' : '[+] View Payload'}
         </button>
+      )}
+      {expanded && step.payload && (
+        <pre className="font-mono" style={{ marginLeft: '72px', marginTop: '4px', padding: '8px', background: 'var(--color-surface)', borderRadius: '4px', fontSize: '10px', overflow: 'auto' }}>
+          {JSON.stringify(step.payload, null, 2)}
+        </pre>
       )}
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Greeting on mount (initial empty state)
-// ---------------------------------------------------------------------------
-
-const GREETING_STEP = {
-  type: 'server',
-  badge: 'SERVER',
-  label: "Hello! I'm authenticating via two methods — watch the Action Log to see what happens behind the scenes with every message.",
-}
-
-// ---------------------------------------------------------------------------
-// Main ActionLog component
-// ---------------------------------------------------------------------------
-
-export default function ActionLog({ authType, latestResult, tokenCached, credentials, messageCount = 0 }) {
+export default function ActionLog({ authType, latestResult, messageCount = 0, oauth2Credentials, zkpCredentials }) {
   const [expandedSteps, setExpandedSteps] = useState({})
+  const [steps, setSteps] = useState([])
   const bottomRef = useRef(null)
-  const prevStepsLen = useRef(0)
 
-  // Determine if this is the initial mounted state (no messages yet)
-  const isInitial = messageCount === 0
-
-  // Build the step list based on auth type and response data
-  const rawSteps = isInitial
-    ? []
-    : authType === 'oauth2'
-      ? buildOAuth2Steps({ credentials, auth_info: latestResult?.auth_info, timing: latestResult?.timing })
-      : buildZKPSteps({ credentials, auth_info: latestResult?.auth_info, timing: latestResult?.timing })
-
-  // Ring buffer: keep last 50
-  const steps = rawSteps.slice(-50)
-
-  // Scroll to bottom on new steps
   useEffect(() => {
-    if (steps.length > prevStepsLen.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messageCount === 0) return
+    async function buildSteps() {
+      const newSteps = authType === 'oauth2' 
+        ? await buildOAuth2StepsFull({ 
+            oauth2Credentials, 
+            latestResult, 
+            fetchToken: () => oauth2Credentials ? getAccessToken(String(oauth2Credentials.id), oauth2Credentials.privateKey) : Promise.resolve('') 
+          })
+        : buildZKPStepsFull({ zkpCredentials, latestResult })
+      setSteps(newSteps)
     }
-    prevStepsLen.current = steps.length
+    buildSteps()
+  }, [latestResult?.timestamp, authType, messageCount])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [steps.length])
 
-  // Reset expanded state when authType changes (remount handles this via key prop)
-  // but also clear when latestResult changes (new response with new step IDs)
-  useEffect(() => {
-    setExpandedSteps({})
-    prevStepsLen.current = 0
-  }, [latestResult?.timestamp])
-
-  const toggleExpand = (id) => {
-    setExpandedSteps(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
-  // Show greeting only on initial mount (before any steps)
-  const displaySteps = isInitial ? [GREETING_STEP] : steps
+  const phases = [...new Set(steps.map(s => s.phase))]
 
   return (
-    <>
-      {/* fadeSlideIn keyframe injected once */}
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-
-      <div style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--border-radius-lg)',
-        overflow: 'hidden',
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: 'var(--space-3) var(--space-4)',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--color-elevated)',
-        }}>
-          <span style={{
-            fontWeight: 700,
-            fontSize: '12px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.07em',
-            color: 'var(--color-text)',
-            fontFamily: 'var(--font-sans)',
-          }}>
-            Action Log
-          </span>
-          </div>
-
-        {/* Steps container — scrollable */}
-        <div style={{
-          overflowY: 'auto',
-          maxHeight: '400px',
-        }}>
-          {displaySteps.map((step, i) => (
-            <StepRow
-              key={step.label}
-              id={step.label}
-              step={step}
-              index={i}
-              expanded={!!expandedSteps[step.label]}
-              onToggle={toggleExpand}
-            />
-          ))}
-
-          {/* Auto-scroll anchor */}
-          <div ref={bottomRef} style={{ height: '1px' }} />
-        </div>
+    <div className="sidebar-panel" style={{ height: '100%' }}>
+      <div className="panel-header">
+        <span className="panel-title">Trace Log</span>
+        <span className={`badge ${authType === 'zkp' ? 'badge-zkp' : 'badge-oauth2'}`}>
+          {authType.toUpperCase()}
+        </span>
       </div>
-    </>
+      <div className="panel-content" style={{ padding: 0 }}>
+        {steps.length === 0 ? (
+          <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-muted)', fontSize: '12px' }}>
+            Awaiting session data…
+          </div>
+        ) : (
+          phases.map(phase => (
+            <div key={phase}>
+              <PhaseSeparator phase={phase} />
+              {steps.filter(s => s.phase === phase).map((s, i) => (
+                <StepRow 
+                  key={i} 
+                  step={s} 
+                  expanded={!!expandedSteps[s.label]} 
+                  onToggle={() => setExpandedSteps(prev => ({...prev, [s.label]: !prev[s.label]}))} 
+                />
+              ))}
+            </div>
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+    </div>
   )
 }

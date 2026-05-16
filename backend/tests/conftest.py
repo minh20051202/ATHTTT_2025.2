@@ -51,10 +51,29 @@ app.dependency_overrides[get_db] = override_get_db
 # Mock intent extractor — avoids real NVIDIA NIM API calls in tests
 # ---------------------------------------------------------------------------
 class MockIntent:
-    """Return a deterministic intent for all messages."""
-    action = "search_products"
-    parameters = {"query": "laptop"}
-    confidence = 0.99
+    """Return intent based on message content for realistic test behavior."""
+    def __init__(self, message: str = ""):
+        m = message.lower()
+        if any(w in m for w in ["order history", "past orders", "show my order"]):
+            self.action = "get_order_history"
+            self.parameters = {}
+        elif any(w in m for w in ["checkout", "buy now", "confirm order"]):
+            self.action = "checkout"
+            self.parameters = {}
+        elif any(w in m for w in ["add to cart", "put in cart"]):
+            self.action = "add_to_cart"
+            self.parameters = {"product_name": "item", "quantity": 1}
+        elif any(w in m for w in ["remove", "delete from cart"]):
+            self.action = "remove_from_cart"
+            self.parameters = {"product_id": 1}
+        elif "cart" in m:
+            self.action = "view_cart"
+            self.parameters = {}
+        else:
+            self.action = "search_products"
+            self.parameters = {"product_name": "laptop"}
+
+        self.confidence = 0.99
 
     def dict(self):
         return {
@@ -64,14 +83,14 @@ class MockIntent:
         }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_intent_extractor():
-    """Replace the real intent extractor with a mock in all tests."""
+    """Replace the real intent extractor with a mock. Use explicitly where needed."""
     from backend.agents import intent as intent_module
     original_extract = intent_module.intent_extractor.extract_intent
 
     async def mock_extract(message: str):
-        return MockIntent()
+        return MockIntent(message)
 
     intent_module.intent_extractor.extract_intent = mock_extract
     yield

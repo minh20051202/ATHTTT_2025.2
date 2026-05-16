@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from .models import User, Agent, Product, Transaction, get_db
 import bcrypt
@@ -109,7 +110,10 @@ class DatabaseOperations:
         description: Optional[str] = None,
         category: Optional[str] = None
     ) -> Product:
-        """Create a new product."""
+        """Create a new product. If name already exists, return existing product (upsert)."""
+        existing = db.query(Product).filter(Product.name == name).first()
+        if existing:
+            return existing
         product = Product(
             name=name,
             price=price,
@@ -118,7 +122,11 @@ class DatabaseOperations:
             category=category
         )
         db.add(product)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            return db.query(Product).filter(Product.name == name).first()
         db.refresh(product)
         return product
 

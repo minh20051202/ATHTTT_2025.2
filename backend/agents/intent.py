@@ -133,16 +133,33 @@ Examples:
                 "max_tokens": 500
             }
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=payload
-                )
-                response.raise_for_status()
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                for attempt in range(2):
+                    try:
+                        response = await client.post(
+                            f"{self.base_url}/chat/completions",
+                            headers=headers,
+                            json=payload
+                        )
+                        response.raise_for_status()
+                        break
+                    except httpx.ReadTimeout:
+                        if attempt == 1:
+                            raise AppError(
+                                error_code=ErrorCode.NIM_API_ERROR,
+                                message="NVIDIA NIM API timed out after 60s",
+                                status_code=504
+                            )
 
                 result = response.json()
-                content = result["choices"][0]["message"]["content"].strip()
+                message = result["choices"][0]["message"]
+                content = message.get("content", "").strip()
+                if not content:
+                    raise AppError(
+                        error_code=ErrorCode.NIM_API_ERROR,
+                        message=f"Model returned empty response: {result}",
+                        status_code=502
+                    )
 
                 # Strip markdown code fences if present
                 if content.startswith("```"):
@@ -159,13 +176,14 @@ Examples:
         except httpx.HTTPStatusError as e:
             raise AppError(
                 error_code=ErrorCode.NIM_API_ERROR,
-                message=f"NVIDIA NIM API error: {str(e)}",
+                message=f"NVIDIA NIM API error: {e.response.status_code} {e.response.text[:200]}",
                 status_code=e.response.status_code
             )
         except Exception as e:
+            import traceback
             raise AppError(
                 error_code=ErrorCode.EXTERNAL_SERVICE_ERROR,
-                message=f"Failed to extract intent: {str(e)}",
+                message=f"Failed to extract intent: {type(e).__name__}: {e} | {traceback.format_exc()}",
                 status_code=500
             )
 
@@ -354,7 +372,7 @@ class ToolCaller:
         db: Optional[Any] = None
     ) -> Dict[str, Any]:
         """Execute a purchase. Resolves product_name to product_id via context ref or DB."""
-        from ..db.models import Product
+        from ..db.models import Product, Transaction
 
         product_id = params.get("product_id")
         product_name = params.get("product_name")
@@ -386,12 +404,35 @@ class ToolCaller:
 
         quantity = params.get("quantity", 1)
 
-        # Get actual product price from DB
+        # Resolve unit_price from DB, create real transaction
         unit_price = 999.99
+        product = None
+        transaction_id = None
         if db:
             product = db.query(Product).filter(Product.id == product_id).first()
             if product:
                 unit_price = product.price
+                # Decrement stock
+                if product.stock < quantity:
+                    raise AppError(
+                        error_code=ErrorCode.INVALID_OPERATION,
+                        message=f"Insufficient stock for '{product.name}': requested {quantity}, available {product.stock}",
+                        status_code=400
+                    )
+                product.stock -= quantity
+                # Create real transaction record
+                transaction = Transaction(
+                    agent_id=agent_id,
+                    product_id=product_id,
+                    product_ids=str(product_id),
+                    amount=quantity,
+                    total_price=round(unit_price * quantity, 2),
+                    auth_type_used=auth_type,
+                    status="completed"
+                )
+                db.add(transaction)
+                db.commit()
+                transaction_id = transaction.id
             else:
                 raise AppError(
                     error_code=ErrorCode.RESOURCE_NOT_FOUND,
@@ -403,8 +444,10 @@ class ToolCaller:
             "action": "execute_purchase",
             "product_id": product_id,
             "quantity": quantity,
+            "unit_price": unit_price,
             "total": unit_price * quantity,
-            "status": "completed"
+            "status": "completed",
+            "transaction_id": transaction_id,
         }
 
     async def _get_product_details(

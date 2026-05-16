@@ -71,20 +71,21 @@ class TestZKPAuth:
 
     def test_verify_proof_with_valid_hex_key(self):
         """verify_proof accepts hex-format Schnorr proofs from sign_data."""
+        from backend.auth import zkp as zkp_module
         from backend.auth.zkp import zkp_auth
         import secrets
 
-        P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-        Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
-        G = 4
+        P = zkp_module._DHP
+        Q = zkp_module._DHQ
+        G = zkp_module._DHG
 
         private_key_int = secrets.randbelow(Q)
         public_key_int = pow(G, private_key_int, P)
         public_key = json.dumps({
-            "y": public_key_int,
-            "p": P,
-            "g": G,
-            "q": Q,
+            "y": format(public_key_int, 'x'),
+            "p": format(P, 'x'),
+            "g": format(G, 'x'),
+            "q": format(Q, 'x'),
         })
         hex_private_key = format(private_key_int, 'x')
 
@@ -97,21 +98,22 @@ class TestZKPAuth:
 
     def test_verify_proof_wrong_private_key_fails(self):
         """Proof created with wrong private key fails verification."""
+        from backend.auth import zkp as zkp_module
         from backend.auth.zkp import zkp_auth
         import secrets
 
-        P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-        Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
-        G = 4
+        P = zkp_module._DHP
+        Q = zkp_module._DHQ
+        G = zkp_module._DHG
 
         correct_key = secrets.randbelow(Q)
         wrong_key = secrets.randbelow(Q)
         public_key_int = pow(G, correct_key, P)
         public_key = json.dumps({
-            "y": public_key_int,
-            "p": P,
-            "g": G,
-            "q": Q,
+            "y": format(public_key_int, 'x'),
+            "p": format(P, 'x'),
+            "g": format(G, 'x'),
+            "q": format(Q, 'x'),
         })
 
         token, _ = zkp_auth.create_token()
@@ -359,16 +361,17 @@ class TestZKPDataIntegrity:
 
         # Simulate client registering public key
         import secrets, json as _json
-        P = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-        Q = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b68612769242e4cff
-        G = 4
+        from backend.auth import zkp as zkp_module
+        P = zkp_module._DHP
+        Q = zkp_module._DHQ
+        G = zkp_module._DHG
         private_key_int = secrets.randbelow(Q)
         public_key_int = pow(G, private_key_int, P)
         public_key_json = _json.dumps({
-            "y": public_key_int,
-            "p": P,
-            "g": G,
-            "q": Q,
+            "y": format(public_key_int, 'x'),
+            "p": format(P, 'x'),
+            "g": format(G, 'x'),
+            "q": format(Q, 'x'),
         })
 
         reg_resp = client.post("/api/auth/zkp/register", data={

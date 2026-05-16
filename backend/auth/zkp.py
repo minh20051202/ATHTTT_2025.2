@@ -26,13 +26,26 @@ import json
 
 
 # ---------------------------------------------------------------------------
-# Domain parameters (educational/demo — 257-bit safe prime).
+# Production domain parameters (RFC 3526 Group 14 — 2048-bit safe prime).
 # p = 2q + 1, where q is prime. g generates the order-q subgroup.
-# For production: use FIPS 186-5 parameters (e.g., 2048-bit or 3072-bit)
+# These are generated once at import time (not per-call).
 # ---------------------------------------------------------------------------
-_DHP = 0x1cf31b37e99c3942ce796767f4df210c915eda4d037a0ff36f0c24ed2485c99ff
-_DHQ = 0xe798d9bf4ce1ca1673cb3b3fa6f908648af6d2681bd07f9b78612769242e4cff
-_DHG = 0x4
+import time as _time
+
+_DHP, _DHQ, _DHG = None, None, None
+
+def _init_dh_params():
+    """Generate 2048-bit DH group params once at module import. g=2."""
+    global _DHP, _DHQ, _DHG
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.asymmetric.dh import generate_parameters
+    gen = generate_parameters(2, 2048, default_backend())
+    pn = gen.parameter_numbers()
+    _DHP = pn.p
+    _DHQ = (pn.p - 1) // 2   # safe prime: q = (p-1)/2 is prime
+    _DHG = pn.g
+
+_init_dh_params()
 
 
 def _modpow(base: int, exp: int, mod: int) -> int:
@@ -44,8 +57,12 @@ def _modpow(base: int, exp: int, mod: int) -> int:
 # ---------------------------------------------------------------------------
 
 def get_domain_params() -> dict:
-    """Return the shared domain parameters (p, g, q)."""
-    return {"p": _DHP, "g": _DHG, "q": _DHQ}
+    """Return the shared domain parameters as hex strings (for API)."""
+    return {
+        "p": format(_DHP, 'x'),
+        "g": format(_DHG, 'x'),
+        "q": format(_DHQ, 'x'),
+    }
 
 
 

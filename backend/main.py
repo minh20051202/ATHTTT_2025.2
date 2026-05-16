@@ -90,11 +90,11 @@ async def seed_demo(db=Depends(get_db)):
         if not user:
             raise
 
-    # OAuth2 Agent — PKJWT: create_agent creates agent record with public_key=NULL.
-    # Client generates its own RSA keypair, sends only public key via /api/auth/oauth2/register.
-    oauth2_agent_record = db_ops.create_agent(
+    # OAuth2 Agent — upserted (idempotent seed). Client generates its own RSA keypair,
+    # sends only public key via POST /api/auth/oauth2/register.
+    oauth2_agent = db_ops.upsert_agent(
         db=db, user_id=user.id, name="OAuth2 Agent",
-        auth_type="oauth2"
+        auth_type="oauth2", public_key=None
     )
 
     # ZKP Agent — public_key=NULL initially. Client generates its own random
@@ -104,7 +104,7 @@ async def seed_demo(db=Depends(get_db)):
         auth_type="zkp", public_key=None
     )
 
-    # Sample products
+    # Sample products — upsert via create_product (handles duplicates)
     products_data = [
         {"name": "Laptop", "price": 999.99, "stock": 10, "description": "High-performance laptop", "category": "Electronics"},
         {"name": "Smartphone", "price": 499.99, "stock": 25, "description": "Latest model smartphone", "category": "Electronics"},
@@ -118,9 +118,9 @@ async def seed_demo(db=Depends(get_db)):
         "message": "Demo data created",
         "user": {"id": user.id, "username": user.username},
         "oauth2_agent": {
-            "id": oauth2_agent_record.id,
-            "name": oauth2_agent_record.name,
-            "auth_type": oauth2_agent_record.auth_type,
+            "id": oauth2_agent.id,
+            "name": oauth2_agent.name,
+            "auth_type": oauth2_agent.auth_type,
             "note": "Client must call POST /api/auth/oauth2/register with RSA public key. Private key never sent to server.",
         },
         "zkp_agent": {"id": zkp_agent.id, "name": zkp_agent.name, "auth_type": zkp_agent.auth_type,
