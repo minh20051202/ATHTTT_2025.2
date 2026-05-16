@@ -553,7 +553,7 @@ export default function AttackPanel() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div style={{ fontSize: "10px", color: "var(--terminal-muted)", textTransform: "uppercase", fontWeight: 800, letterSpacing: "1px" }}>Vector Select</div>
-          <div className="attack-listbox" role="listbox" tabIndex={0} onKeyDown={handleKeyDown} ref={listboxRef} style={{ minHeight: "220px" }}>
+          <div className="attack-listbox" role="listbox" tabIndex={0} onKeyDown={handleKeyDown} ref={listboxRef} style={{ minHeight: "120px" }}>
             {ATTACK_TYPES.map(({ key, label, auth }) => (
               <div key={key} role="option" aria-selected={attackType === key} className={`attack-item ${attackType === key ? "selected" : ""}`} onClick={() => { setAttackType(key); resetPanels() }}>
                 <div style={{ fontWeight: 700 }}>{label}</div>
