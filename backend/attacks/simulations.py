@@ -622,8 +622,10 @@ async def nonce_reuse_attack(request: AttackRequest):
             return (a, 1, 0)
         g, x1, y1 = egcd(b, a % b)
         return (g, y1, x1 - (a // b) * y1)
-    x_inv, _, _ = egcd(diff_c, _DHQ)
-    x_recovered = (diff_s * x_inv) % _DHQ
+    # egcd returns (g, x, y) where a*x + b*y = g
+    # For inv(diff_c) modulo _DHQ: use the coefficient of _DHQ (second param) → y at top level
+    _, inv_diff_c, _ = egcd(diff_c, _DHQ)
+    x_recovered = (diff_s * inv_diff_c) % _DHQ
 
     match = (x_recovered == x_secret)
     timing = {"observe": time.time() - attack_start}
