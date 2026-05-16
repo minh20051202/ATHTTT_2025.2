@@ -115,8 +115,9 @@ async def extract_and_execute(request: ChatRequest, http_request: Request = None
         if len(settings.log_buffer) > 20:
             settings.log_buffer.pop(0)
 
-        # SIMULATE MITM INTERCEPTION
-        if settings.tls_downgrade_active:
+        # SIMULATE MITM INTERCEPTION — populate when tls_downgrade_active=False (vulnerable)
+        # When tls_downgrade_active=True, mTLS/pinning prevents proxy from reading traffic
+        if not settings.tls_downgrade_active:
             settings.proxy_buffer.append({
                 "timestamp": time.time(),
                 "path": "/api/chat/intent",
