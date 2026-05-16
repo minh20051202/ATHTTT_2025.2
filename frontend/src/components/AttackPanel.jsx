@@ -188,7 +188,9 @@ function ForensicsReadout({ result, capturedOauth2Token, capturedZkpProof }) {
           </div>
         )}
 
-        {(result.auth_type === "oauth2" ? capturedOauth2Token : capturedZkpProof) && hasStolenCredential && (
+        {(result.auth_type === "oauth2"
+            ? (capturedOauth2Token && hasStolenCredential)
+            : capturedZkpProof) && (
           <div>
             <div style={{ color: "var(--terminal-accent)", fontWeight: 800, fontSize: "9px", marginBottom: "6px", textTransform: "uppercase" }}>[CAPTURED_CREDENTIAL]</div>
             <pre style={{
