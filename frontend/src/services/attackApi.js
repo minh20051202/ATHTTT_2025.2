@@ -17,9 +17,6 @@ export const attackApi = {
   replay: (authType, token, agentId) =>
     runAttack({ authType, token, attackType: 'replay', agentId }),
 
-  credentialTheft: (authType, token, agentId) =>
-    runAttack({ authType, token, attackType: 'credential-theft', agentId }),
-
   mitm: (authType, token, agentId) =>
     runAttack({ authType, token, attackType: 'mitm', agentId }),
 

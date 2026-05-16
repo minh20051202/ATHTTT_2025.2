@@ -3,10 +3,9 @@ import { useChatHistory } from "../context/ChatHistoryContext.jsx";
 import { attackApi } from "../services/attackApi.js";
 
 const ATTACK_TYPES = [
-  { key: "credential-theft", label: "1. Credential Theft via Logs", auth: "both", desc: "Bearer tokens or secrets stolen from AI agent conversation logs or context" },
-  { key: "mitm",             label: "2. TLS Interception / MITM",   auth: "both", desc: "Proxy intercepts credentials in transit via TLS downgrade or inspection" },
-  { key: "replay",           label: "3. Token Replay",               auth: "oauth2", desc: "Reuse captured bearer token until expiry" },
-  { key: "nonce-reuse", label: "4. Nonce Reuse Attack", auth: "zkp", desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
+  { key: "mitm",             label: "1. TLS Interception / MITM",   auth: "both", desc: "Proxy intercepts credentials in transit via TLS downgrade or inspection" },
+  { key: "replay",           label: "2. Token Replay",               auth: "both", desc: "Reuse captured bearer token — OAuth2 succeeds, ZKP blocked by single-use token" },
+  { key: "nonce-reuse",      label: "3. Nonce Reuse Attack",         auth: "zkp",  desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
 ]
 
 /* ─── Status LED pulsing pixel ─── */
@@ -387,9 +386,8 @@ export default function AttackPanel() {
     try {
       const apiFn = {
         "replay":                   attackApi.replay,
-        "credential-theft":         attackApi.credentialTheft,
         "mitm":                     attackApi.mitm,
-        "nonce-reuse": attackApi.nonceReuse,
+        "nonce-reuse":              attackApi.nonceReuse,
       }[attackType]
 
       let oauth2Res = null;
