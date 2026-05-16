@@ -141,7 +141,7 @@ Proof alone is not reusable (single-use token), but:
 
 ## Attack 3: Token Replay
 
-**Auth types:** both — but implemented very differently
+**Auth types:** OAuth2 (ZKP challenge tokens are already single-use and blocked)
 
 ### OAuth2: tokens are reusable by design
 
@@ -254,7 +254,7 @@ RFC 7523 compliance: The server MUST maintain a mapping of `issuer → registere
 
 ---
 
-## Attack 5: Traffic Analysis / Proof Correlation
+## Attack 5: Proof Correlation / Traffic Analysis
 
 **Auth types:** ZKP only
 
@@ -305,78 +305,17 @@ Result: Full activity profile of this agent over weeks/months
 
 - **Constant-time proof padding:** Pad proofs to fixed byte length regardless of actual content
 - **Onion routing:** Route requests through multiple proxies that strip identifying headers
-- **BBS+ / threshold signatures:** Group signatures that hide which member signed without cryptographic proof metadata
+- ** BBS+ / threshold signatures:** Group signatures that hide which member signed without cryptographic proof metadata
 
 ---
 
-## Attack 6: Challenge Prediction (Entropy Attack)
-
-**Auth types:** ZKP only
-
-### How it works
-
-The challenge token (UUID v4) should be 122 bits of cryptographic randomness. If the server uses a weak RNG (e.g., seeded by `time.time()`) for challenge generation, an attacker can predict future challenges.
-
-With a predicted challenge, the attacker pre-computes a valid proof offline before the challenge is even issued. When the victim attempts to authenticate, the attacker injects the pre-computed proof.
-
-### Demo simulation
-
-```
-backend/utils/config.py:
-  settings.vulnerable_rng  — True = use time-based challenge tokens
-                            False = use UUID v4 (cryptographically random)
-
-backend/attacks/simulations.py → POST /attacks/challenge-predictability:
-  1. Check settings.vulnerable_rng
-  2. If True:
-     - predicted_next = f"predictable-token-{int(time.time()) + 1}"
-     - success: True
-     - Shows: attacker pre-computes proof for predicted token
-  3. If False (default, secure):
-     - success: False
-     - Message: "Challenge token is cryptographically secure and unpredictable"
-```
-
-### Predictable vs secure challenge tokens
-
-```
-Vulnerable (settings.vulnerable_rng=True):
-  time.time() = 1715000000
-  token = f"predictable-token-{1715000000}"       → predictable
-
-Secure (settings.vulnerable_rng=False):
-  token = uuid.uuid4()  → "3f2a1b4c-..."
-                     → 122 bits entropy, unpredictable
-```
-
-### Why it matters even with ZKP's mathematical security
-
-ZKP proves knowledge of `x` without transmitting `x`. But the proof requires a fresh challenge `c = H(t ‖ token)` to be secure. If the challenge is predictable, an attacker can:
-
-```
-1. Pick random nonce r
-2. Compute t = g^r mod p
-3. PREDICT next challenge token: T = "predictable-token-1715000002"
-4. Compute c = H(t ‖ T)  ← BEFORE server issues the token
-5. Compute s = r + c·x mod q  ← FULL PROOF COMPUTED OFFLINE
-6. Wait for victim's real challenge
-7. Replace victim's proof with pre-computed one → ACCEPTED
-```
-
-### Countermeasures
-
-- Use `secrets.token_urlsafe(48)` or `uuid.uuid4()` for challenge tokens — never `time.time()`
-- Store challenge token in server memory with 60s TTL, delete immediately after use (already implemented)
-
----
-
-## Attack 7: Nonce Reuse
+## Attack 6: Nonce Reuse
 
 **Auth types:** ZKP only — the most dangerous Schnorr attack
 
 ### How it works
 
-In Schnorr identification, the nonce `r` must be used for ONE proof only. If the same `r` appears in two proofs with different challenges `c1` and `c2`, the secret key `x` can be recovered algebraically with no brute force needed.
+In Schnorr identification, the nonce `r` must be used for ONE proof only. If the same `r` appears in two proofs with different challenges `c1 ≠ c2`, the secret key `x` can be recovered algebraically with no brute force needed.
 
 ### The math
 
@@ -420,11 +359,10 @@ x_secret = int("deadbeef1234567890abcdef", 16) % _DHQ
 s1 = (r + c1 * x_secret) % _DHQ
 s2 = (r + c2 * x_secret) % _DHQ
 
-# Attack: algebraic recovery
+# Attack: algebraic recovery using Extended Euclidean Algorithm
 diff_c = (c1 - c2) % _DHQ   # nonzero (c1 ≠ c2)
 diff_s = (s1 - s2) % _DHQ
 
-# Extended Euclidean Algorithm for modular inverse
 def egcd(a, b):
     if b == 0: return (a, 1, 0)
     g, x1, y1 = egcd(b, a % b)
@@ -482,5 +420,4 @@ From x, attacker can:
 | 3 | Challenge Replay (ZKP) | ZKP | — | Already blocked (single-use token) |
 | 4 | Client Assertion Substitution | OAuth2 | Missing issuer→key binding check | Strict RFC 7523 validation |
 | 5 | Traffic Analysis / Proof Correlation | ZKP | Proof metadata leaks identity | Padding, onion routing, BBS+ |
-| 6 | Challenge Prediction | ZKP | Weak RNG for challenge tokens | Cryptographically random tokens |
-| 7 | Nonce Reuse | ZKP | CSPRNG failure or state reuse | RFC 6979 deterministic nonce |
+| 6 | Nonce Reuse | ZKP | CSPRNG failure or state reuse | RFC 6979 deterministic nonce |
