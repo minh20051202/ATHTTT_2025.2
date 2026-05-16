@@ -7,8 +7,7 @@ const ATTACK_TYPES = [
   { key: "mitm",             label: "2. TLS Interception / MITM",   auth: "both", desc: "Proxy intercepts credentials in transit via TLS downgrade or inspection" },
   { key: "replay",           label: "3. Token Replay",               auth: "oauth2", desc: "Reuse captured bearer token until expiry" },
   { key: "client-assertion-sub", label: "4. Client Assertion Substitution", auth: "oauth2", desc: "Forge assertions impersonating another agent by modifying JWT claims" },
-  { key: "proof-correlation", label: "5. Traffic Analysis / Fingerprinting", auth: "zkp", desc: "Observer links ZKP authentications via proof metadata fingerprint" },
-  { key: "nonce-reuse", label: "6. Nonce Reuse Attack", auth: "zkp", desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
+  { key: "nonce-reuse", label: "5. Nonce Reuse Attack", auth: "zkp", desc: "Schnorr signature broken if nonce r is reused — secret key x algebraically recovered" },
 ]
 
 /* ─── Status LED pulsing pixel ─── */
@@ -77,14 +76,6 @@ function ForensicsReadout({ result, capturedOauth2Token, capturedZkpProof }) {
   if (!result) return null;
 
   const vulnerability = result.details?.vulnerability || result.message;
-  const payload = result.details?.exposed_data ||
-                 result.details?.leaked_metadata ||
-                 result.details?.intercepted_data ||
-                 result.details?.server_validation ||
-                 result.details?.math ||
-                 result.details?.mathematical_proof ||
-                 result.details?.stolen_identity ||
-                 result.details?.attack_phases;
 
   const exfiltrated = result.details?.exfiltrated_data;
   const exposedPrivateKey = result.details?.exposed_private_key;
@@ -188,9 +179,7 @@ function ForensicsReadout({ result, capturedOauth2Token, capturedZkpProof }) {
           </div>
         )}
 
-        {(result.auth_type === "oauth2"
-            ? (capturedOauth2Token && hasStolenCredential)
-            : capturedZkpProof) && (
+        {(result.auth_type === "oauth2" ? capturedOauth2Token : capturedZkpProof) && hasStolenCredential && (
           <div>
             <div style={{ color: "var(--terminal-accent)", fontWeight: 800, fontSize: "9px", marginBottom: "6px", textTransform: "uppercase" }}>[CAPTURED_CREDENTIAL]</div>
             <pre style={{
@@ -218,25 +207,7 @@ function ForensicsReadout({ result, capturedOauth2Token, capturedZkpProof }) {
           <div style={{ color: "var(--terminal-text)", fontSize: "12px" }}>{vulnerability}</div>
         </div>
 
-        {payload && (
-          <div>
-            <div style={{ color: "var(--terminal-muted)", marginBottom: "4px", fontWeight: 800, fontSize: "9px", textTransform: "uppercase" }}>[NETWORK_CAPTURE]</div>
-            <pre style={{ 
-              margin: 0, 
-              padding: "10px", 
-              background: "rgba(0,0,0,0.04)", 
-              border: "1px solid var(--terminal-border)",
-              color: "var(--terminal-secure)",
-              overflowX: "auto",
-              fontSize: "10px",
-              fontFamily: "var(--font-mono)",
-              borderRadius: "2px"
-            }}>
-              {JSON.stringify(payload, null, 2)}
-            </pre>
-          </div>
-        )}
-
+        
               </div>
     </div>
   );
