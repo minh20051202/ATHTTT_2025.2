@@ -56,15 +56,32 @@ async def replay_attack(request: AttackRequest):
     try:
         if request.auth_type == "oauth2":
             try:
+                # 1. Parse token to get agent_id (just to formulate the request)
                 payload = _verify_oauth2_token(request.token)
-                timing["verification"] = time.time() - attack_start
-
-                from ..db.operations import db_ops
+                agent_id = payload.get("sub")
+                
+                # 2. Simulate TRUE attack by calling the actual Intent Endpoint
+                from ..api.chat import extract_and_execute, ChatRequest
+                from fastapi import Request
                 from ..db.models import get_db
                 
+                # Mock a request with the stolen Bearer token
+                scope = {
+                    "type": "http",
+                    "headers": [(b"authorization", f"Bearer {request.token}".encode("utf-8"))]
+                }
+                mock_request = Request(scope)
+                
+                chat_req = ChatRequest(
+                    message="show my order history",
+                    agent_id=int(agent_id) if agent_id else 0
+                )
+                
                 db = next(get_db())
-                agent_id = payload.get("sub")
-                transactions = db_ops.get_agent_transactions(db, int(agent_id)) if agent_id else []
+                # Actually hit the protected endpoint
+                intent_response = await extract_and_execute(request=chat_req, http_request=mock_request, db=db)
+                
+                timing["verification"] = time.time() - attack_start
 
                 details = {
                     "vulnerability": "3. Token Replay: OAuth2 tokens are reusable by design until they expire",
@@ -73,13 +90,8 @@ async def replay_attack(request: AttackRequest):
                         "token_expiry": payload.get("exp"),
                         "scopes": payload.get("scopes", ["all"])
                     },
-                    "replay_result": "ACCESS GRANTED — Attacker successfully re-authenticated as victim",
-                    "exfiltrated_data": {
-                        "recent_transactions": [
-                            {"id": t.id, "product": t.product_id, "price": t.total_price} 
-                            for t in transactions[:3]
-                        ],
-                    },
+                    "replay_result": "ACCESS GRANTED — Attacker successfully re-authenticated as victim by calling /api/chat/intent",
+                    "exfiltrated_data": intent_response.result,  # Result directly from the intent endpoint
                     "attack_successful": True,
                     "countermeasure": "Use one-time tokens (JTI), shorter TTLs, and implement DPoP (Demonstrating Proof-of-Possession)."
                 }
@@ -88,7 +100,7 @@ async def replay_attack(request: AttackRequest):
                     attack_type="replay",
                     auth_type="oauth2",
                     success=True,
-                    message="SUCCESS — Stolen bearer token used to exfiltrate private transaction history",
+                    message="SUCCESS — Stolen bearer token used to successfully call the intent endpoint",
                     details=details,
                     timing=timing
                 )
@@ -245,25 +257,20 @@ async def credential_theft_attack(request: AttackRequest):
 
 @router.post("/mitm", response_model=AttackResponse)
 async def mitm_attack(request: AttackRequest):
-    """Simulate MITM / TLS Downgrade."""
+    """Simulate MITM / TLS Downgrade.
+
+    tls_downgrade_active=True  → countermeasure ON (mTLS) → attack BLOCKED
+    tls_downgrade_active=False → no countermeasure → connection vulnerable → creds intercepted
+    """
     timing = {}
     attack_start = time.time()
 
-    try:
-        if not settings.tls_downgrade_active:
-            timing["interception"] = time.time() - attack_start
-            return AttackResponse(
-                attack_type="mitm",
-                auth_type=request.auth_type,
-                success=False,
-                message="FAILED — TLS encryption protected the traffic from interception",
-                details={"vulnerability": "Connection is fully encrypted. Proxy listener captured nothing."},
-                timing=timing
-            )
-
+    # No countermeasure → vulnerable → attack succeeds
+    if not settings.tls_downgrade_active:
+        # Connection is vulnerable to TLS downgrade — show intercepted data
         if request.auth_type == "oauth2":
             timing["interception"] = time.time() - attack_start
-            
+
             stolen_token = None
             for entry in settings.proxy_buffer:
                 headers = entry.get("headers", {})
@@ -272,34 +279,32 @@ async def mitm_attack(request: AttackRequest):
                     stolen_token = auth_header[7:]
                     break
 
+            # Fallback: use token passed from frontend (captured during /intent response)
             if not stolen_token:
-                # Fallback to the token in request for backward compatibility in basic tests
-                # if not explicitly simulating a real intercept scenario
                 stolen_token = request.token
 
             details = {
-                "vulnerability": "2. MITM: Intercepted via corporate proxy TLS termination",
                 "intercepted_data": {
                     "header_name": "Authorization",
-                    "header_value_prefix": stolen_token[:30] + "..." if stolen_token else "",
+                    "header_value": stolen_token or "N/A",
                 },
                 "attack_successful": True,
                 "impact": "Attacker extracts bearer token from intercepted request, reuses directly",
-                "countermeasure": "Certificate pinning, mTLS, TLS 1.3 only"
+                "countermeasure": "mTLS + TLS 1.3 pinning prevents proxy from reading traffic"
             }
 
             return AttackResponse(
                 attack_type="mitm",
                 auth_type="oauth2",
                 success=True,
-                message="SUCCESS — MITM captured Authorization: Bearer token",
+                message="SUCCESS — TLS Interception captured Authorization: Bearer token",
                 details=details,
                 timing=timing
             )
 
         elif request.auth_type == "zkp":
             timing["interception"] = time.time() - attack_start
-            
+
             captured_proof = None
             captured_password = None
             for entry in settings.proxy_buffer:
@@ -309,39 +314,48 @@ async def mitm_attack(request: AttackRequest):
                 if body.get("password"):
                     captured_password = body.get("password")
 
-            if not captured_proof and not captured_password:
-                # Fallback
-                captured_proof = {"commitment": "t", "response": "s"}
-                captured_password = "VictimAgentPassword123 (Captured during initial register call)"
+            # Fallback: use proof/token2 passed from frontend
+            if not captured_proof:
+                captured_proof = request.token2 or "zkp_proof_from_wire"
+            if not captured_password:
+                captured_password = "VictimAgentPassword123 (Captured during unencrypted registration)"
 
             details = {
-                "vulnerability": "2. MITM: TLS inspection captures proof + potentially plaintext password",
                 "intercepted_data": {
                     "captured_proof": captured_proof,
                     "captured_password": captured_password,
                 },
                 "attack_successful": True,
-                "impact": "MITM proxy captures the agent's password if sent during unencrypted registration or config synchronization.",
-                "reason": "While proofs are ZK, agent lifecycle calls (registration/updates) often send secrets if mTLS is not used.",
-                "countermeasure": "Certificate pinning + mTLS prevents traffic inspection by intermediaries"
+                "impact": "MITM proxy captures the agent's proof and agent lifecycle secrets during registration.",
+                "reason": "While ZKP proofs are resistant, registration/agent-add calls may transmit secrets if mTLS absent.",
+                "countermeasure": "mTLS + TLS 1.3 pinning prevents traffic inspection by intermediaries."
             }
 
             return AttackResponse(
                 attack_type="mitm",
                 auth_type="zkp",
                 success=True,
-                message="SUCCESS — Intercepted registration call revealed agent password",
+                message="SUCCESS — Intercepted agent registration revealed proof and credential",
                 details=details,
                 timing=timing
             )
 
-        else:
-            raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
+        raise AppError(error_code=ErrorCode.INVALID_PARAMETER, message=f"Invalid auth_type: {request.auth_type}", status_code=400)
 
-    except AppError as e:
-        raise e
-    except Exception as e:
-        raise AppError(error_code=ErrorCode.ATTACK_SIMULATION_FAILED, message=f"Attack simulation failed: {str(e)}", status_code=500)
+    # Countermeasure enabled → attack blocked
+    # tls_downgrade_active=True means mTLS/TLS 1.3 pinning is enforced
+    timing["interception"] = time.time() - attack_start
+    return AttackResponse(
+        attack_type="mitm",
+        auth_type=request.auth_type,
+        success=False,
+        message="BLOCKED — mTLS + TLS 1.3 pinning prevented proxy interception",
+        details={
+            "vulnerability": "2. TLS Interception / MITM: Blocked by mTLS + certificate pinning",
+            "countermeasure": "mTLS + TLS 1.3 only ensures intermediary cannot terminate TLS"
+        },
+        timing=timing
+    )
 
 
 @router.post("/client-assertion-sub", response_model=AttackResponse)
@@ -440,7 +454,7 @@ async def proof_correlation_attack(request: AttackRequest):
         if request.auth_type == "zkp":
             timing["analysis"] = time.time() - attack_start
             details = {
-                "vulnerability": "5. Proof Correlation: ZKP proofs leak metadata enabling traffic analysis and de-anonymization",
+                "vulnerability": "5. Traffic Analysis: ZKP proofs leak metadata enabling fingerprinting and de-anonymization",
                 "leaked_metadata": {
                     "proof_size_fingerprint": "Fixed ~180-220 bytes per proof — very distinctive",
                     "public_key_linkability": "All proofs share public key y=g^x — observer links ALL authentications",
@@ -490,7 +504,7 @@ async def challenge_predictability_attack(request: AttackRequest):
             if settings.vulnerable_rng:
                 predicted_next = f"predictable-token-{int(time.time()) + 1}"
                 details = {
-                    "vulnerability": "6. Challenge Token Predictability: Predictable Challenge PRNG (Low Entropy / Improper Seeding)",
+                    "vulnerability": "6. Challenge Token Forgery: Predictable Challenge PRNG (Low Entropy / Improper Seeding)",
                     "observation": {
                         "predicted_challenge_n_plus_1": predicted_next,
                     },
@@ -513,7 +527,7 @@ async def challenge_predictability_attack(request: AttackRequest):
                 message = "SUCCESS — Next challenge predicted; valid proof pre-computed offline"
             else:
                 details = {
-                    "vulnerability": "6. Challenge Token Predictability: Predictable Challenge PRNG",
+                    "vulnerability": "6. Challenge Token Forgery: Predictable Challenge PRNG",
                     "observation": {
                         "entropy": "UUID v4 (122 bits)",
                     },
@@ -553,6 +567,87 @@ async def challenge_predictability_attack(request: AttackRequest):
 class CompareFullResponse(BaseModel):
     oauth2: Dict[str, Optional[AttackResponse]]
     zkp: Dict[str, Optional[AttackResponse]]
+
+
+
+@router.post("/nonce-reuse", response_model=AttackResponse)
+async def nonce_reuse_attack(request: AttackRequest):
+    """
+    NONCE-REUSE ATTACK: Real Schnorr vulnerability.
+
+    If the same random nonce r is reused for two different proofs,
+    the secret x can be recovered algebraically.
+
+    Math:
+      Proof 1: s1 = r + c1·x (mod q)  — issued for challenge c1
+      Proof 2: s2 = r + c2·x (mod q)  — issued for different challenge c2
+      s1 - s2 = (c1 - c2)·x (mod q)
+      x = (s1 - s2) · inv(c1 - c2, q) (mod q)  ← secret fully recovered
+
+    This is why proper Schnorr implementations:
+      1. Delete nonce r immediately after use (never reuse)
+      2. Use CSPRNG for r (no predictability)
+      3. Sign with deterministic nonce (RFC 6979: r = HMAC(k, H(m)) never repeats)
+    """
+    import time
+    attack_start = time.time()
+
+    # Generate honest Schnorr context using the same domain params as real ZKP
+    r = secrets.randbelow(_DHQ)  # nonce — FIXED across two proofs (the bug)
+    t = pow(_DHG, r, _DHP)
+
+    # Two different challenge tokens (c1 and c2 are different)
+    token1 = secrets.token_urlsafe(48)
+    token2 = secrets.token_urlsafe(48)
+
+    c1 = int(hashlib.sha512(f"{t:x}{token1}".encode()).hexdigest(), 16) % _DHQ
+    c2 = int(hashlib.sha512(f"{t:x}{token2}".encode()).hexdigest(), 16) % _DHQ
+
+    # Secret x (agent's private key — the attacker's target)
+    # Same keypair used in the SEED (hardcoded for demo reproducibility)
+    from ..auth.zkp import _DHP, _DHQ, _DHG
+    x_secret = int("deadbeef1234567890abcdef", 16) % _DHQ
+
+    s1 = (r + c1 * x_secret) % _DHQ
+    s2 = (r + c2 * x_secret) % _DHQ
+
+    # --- Attack: recover x from (s1, c1) and (s2, c2) ---
+    diff_c = (c1 - c2) % _DHQ
+    diff_s = (s1 - s2) % _DHQ
+    # Extended Euclidean Algorithm for modular inverse
+    def egcd(a, b):
+        if b == 0:
+            return (a, 1, 0)
+        g, x1, y1 = egcd(b, a % b)
+        return (g, y1, x1 - (a // b) * y1)
+    x_inv, _, _ = egcd(diff_c, _DHQ)
+    x_recovered = (diff_s * x_inv) % _DHQ
+
+    match = (x_recovered == x_secret)
+    timing = {"observe": time.time() - attack_start}
+
+    return AttackResponse(
+        attack_type="nonce-reuse",
+        auth_type="zkp",
+        success=match,
+        message="SUCCESS — x recovered from two proofs sharing nonce r" if match else "FAILED",
+        details={
+            "vulnerability": "7. Nonce Reuse: Schnorr signature broken if nonce r is repeated",
+            "attack_logic": {
+                "root_cause": "r reused across two proofs with different challenges c1 ≠ c2",
+                "formula": "s1 - s2 = (c1 - c2)·x  →  x = (s1 - s2) · inv(c1 - c2) mod q",
+                "nonce_r_reused": format(r, 'x'),
+                "proof1": {"c1": format(c1, 'x'), "s1": format(s1, 'x')},
+                "proof2": {"c2": format(c2, 'x'), "s2": format(s2, 'x')},
+            },
+            "recovered_secret": format(x_recovered, 'x'),
+            "actual_secret": format(x_secret, 'x'),
+            "match": match,
+            "impact": "CRITICAL — With recovered x, attacker can generate new valid proofs for ANY challenge. Full identity compromise.",
+            "countermeasure": "Use RFC 6979 deterministic nonce: r = HMAC-HMAC(key, msg). Deterministic + unique per signature = never reuse. Or use EdDSA which handles this natively.",
+        },
+        timing=timing
+    )
 
 
 @router.post("/compare", response_model=CompareFullResponse)
