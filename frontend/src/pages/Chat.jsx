@@ -13,9 +13,17 @@ import ComputationSidebar from "../components/ComputationSidebar.jsx";
 // Main Chat component
 // ---------------------------------------------------------------------------
 
-let _messageId = 0;
+let _messageId = (() => {
+  try {
+    return parseInt(sessionStorage.getItem("chat_message_id") || "0", 10);
+  } catch {
+    return 0;
+  }
+})();
 function nextId() {
-  return ++_messageId;
+  const id = ++_messageId;
+  try { sessionStorage.setItem("chat_message_id", String(id)); } catch {}
+  return id;
 }
 
 export default function Chat() {
@@ -29,6 +37,8 @@ export default function Chat() {
   const [chatError, setChatError] = useState(null);
   const [messages, setMessages] = useState(() => {
     try {
+      // Hard reload clears messages (sessionStorage dies with the tab)
+      // Back/forward navigation restores them (bfcache restores sessionStorage)
       const stored = sessionStorage.getItem("chat_messages");
       return stored ? JSON.parse(stored) : [];
     } catch {
