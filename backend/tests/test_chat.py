@@ -147,6 +147,7 @@ class TestChatEndpoint:
         assert response.status_code == 404
 
 
+@pytest.mark.usefixtures("mock_intent_extractor")
 def test_chat_oauth2_verifies_with_server_secret(client):
     """OAuth2 /intent verifies access token using HS256 server symmetric secret.
 

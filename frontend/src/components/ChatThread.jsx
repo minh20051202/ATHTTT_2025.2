@@ -4,13 +4,15 @@ import { useRef, useEffect, useState } from 'react'
 function ThinkingIndicator({ authType }) {
   const dotColor = authType === 'zkp' ? 'var(--color-zkp)' : 'var(--color-oauth2)'
   return (
-    <div className="thinking-bubble">
-      {[0, 1, 2].map(i => (
-        <span key={i} className="thinking-dot" style={{
-          background: dotColor,
-          animationDelay: (i * 0.18) + 's',
-        }} />
-      ))}
+    <div className="chat-bubble agent-bubble" style={{ maxWidth: 'min(720px, 92%)' }}>
+      <div className="thinking-bubble">
+        {[0, 1, 2].map(i => (
+          <span key={i} className="thinking-dot" style={{
+            background: dotColor,
+            animationDelay: (i * 0.18) + 's',
+          }} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -122,8 +124,22 @@ export default function ChatThread({ authType, messages, sending, onSend, messag
         )}
         {messages.map((msg, idx) => {
           if (msg.role === 'agent') {
-            if (msg.thinking) return <ThinkingIndicator key={msg.id} authType={authType} />
-            return <AgentBubble key={msg.id} intent={msg.intent} execResult={msg.result} authType={authType} />
+            if (msg.thinking) {
+              return (
+                <ThinkingIndicator
+                  key={msg.id}
+                  authType={authType}
+                />
+              )
+            }
+            return (
+              <AgentBubble
+                key={msg.id}
+                intent={msg.intent}
+                execResult={msg.result}
+                authType={authType}
+              />
+            )
           }
           if (msg.role === 'user') return <UserBubble key={msg.id} content={msg.content} authType={authType} />
           return null

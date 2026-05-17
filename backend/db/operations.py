@@ -32,7 +32,8 @@ class DatabaseOperations:
         name: str,
         auth_type: str,
         public_key: Optional[str] = None,
-        credentials_hash: Optional[str] = None
+        credentials_hash: Optional[str] = None,
+        agent_type: str = "user"
     ) -> Agent:
         """Create a new AI Agent for a user.
 
@@ -41,6 +42,9 @@ class DatabaseOperations:
         - OAuth2 agents: credentials_hash stores the bcrypt-hashed client secret.
           The server never stores the raw secret.
         """
+        if agent_type not in ("user", "server"):
+            raise ValueError("create_agent: agent_type must be 'user' or 'server'.")
+
         if auth_type == "zkp":
             # ZKP: Password NEVER touches the server.
             # Only the public key (signature params) is stored.
@@ -53,6 +57,7 @@ class DatabaseOperations:
                 user_id=user_id,
                 name=name,
                 auth_type=auth_type,
+                agent_type=agent_type,
                 credentials_hash=agent_credentials_hash,
                 public_key=None,          # client will register via POST /api/auth/oauth2/register
                 oauth2_private_key=None,  # DEPRECATED: server never stores per-agent private key
@@ -68,6 +73,7 @@ class DatabaseOperations:
             user_id=user_id,
             name=name,
             auth_type=auth_type,
+            agent_type=agent_type,
             credentials_hash=agent_credentials_hash,
             public_key=public_key if auth_type in ("zkp", "oauth2") else None
         )
@@ -83,13 +89,18 @@ class DatabaseOperations:
         name: str,
         auth_type: str,
         public_key: Optional[str] = None,
-        credentials_hash: Optional[str] = None
+        credentials_hash: Optional[str] = None,
+        agent_type: str = "user"
     ) -> Agent:
         """Create or update an agent. Re-seeding updates existing agent's public_key."""
+        if agent_type not in ("user", "server"):
+            raise ValueError("upsert_agent: agent_type must be 'user' or 'server'.")
+
         existing = db.query(Agent).filter(
             Agent.user_id == user_id,
             Agent.name == name,
-            Agent.auth_type == auth_type
+            Agent.auth_type == auth_type,
+            Agent.agent_type == agent_type
         ).first()
         if existing:
             if public_key is not None:
@@ -99,7 +110,8 @@ class DatabaseOperations:
             db.refresh(existing)
             return existing
         return self.create_agent(db=db, user_id=user_id, name=name, auth_type=auth_type,
-                                 public_key=public_key, credentials_hash=credentials_hash)
+                                 public_key=public_key, credentials_hash=credentials_hash,
+                                 agent_type=agent_type)
 
     def create_product(
         self,

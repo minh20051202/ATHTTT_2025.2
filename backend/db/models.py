@@ -34,6 +34,7 @@ class Agent(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     auth_type = Column(String, nullable=False)  # "oauth2" or "zkp"
+    agent_type = Column(String, nullable=False, default="user")  # "user" or "server"
     credentials_hash = Column(String, nullable=True)  # NULL for ZKP agents (no client secret), non-NULL for OAuth2
     public_key = Column(Text, nullable=True)  # ZKP public key (ZKSignature) — client holds the secret, server only stores this
     oauth2_private_key = Column(Text, nullable=True)  # DEPRECATED: server never stores any per-agent RSA private key (client registers public key only)

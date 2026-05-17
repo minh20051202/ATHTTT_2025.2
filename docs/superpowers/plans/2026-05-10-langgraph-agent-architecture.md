@@ -1,790 +1,605 @@
 # LangGraph Agent Architecture Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement plan task-by-task.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` for implementation, or `superpowers:executing-plans` if working serially.
 
-**Goal:** Upgrade from direct API calls to delegation model: user → UserAgent → POST /api/agent/delegate → LangGraph-powered ServerAgent → result. Each hop authenticated. Reasoning steps streamed via SSE.
+## Goal
 
-**Architecture:** Client-side UserAgent (vanilla JS, no LangChain.js) calls `/api/agent/delegate` SSE stream. Server runs LangGraph with IntentNode → ToolNode → SynthesisNode. Each node emits reasoning steps as SSE events. ServerAgent uses `astream` (NOT `astream_events`) for correct per-node state streaming.
+Upgrade chat execution from a direct client-to-tool API call into an explicit delegation model:
 
-**Tech Stack:** FastAPI · SQLAlchemy · LangGraph · React/Vite · Vanilla JS UserAgent · SSE
-
----
-
-## Task 1: Add `agent_type` to Agent model
-
-**Files:**
-
-- Modify: `backend/db/models.py:30-43`
-- Create: `backend/db/migrations/add_agent_type.py`
-
-- [ ] **Step 1: Add agent_type column**
-
-```python
-class Agent(Base):
-    __tablename__ = "agents"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name = Column(String, nullable=False)
-    auth_type = Column(String, nullable=False)  # "oauth2" or "zkp"
-    agent_type = Column(String, nullable=False, default="server")  # "user" | "server"
-    credentials_hash = Column(String, nullable=True)
-    public_key = Column(Text, nullable=True)
-    oauth2_private_key = Column(Text, nullable=True)  # DEPRECATED
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="agents")
-    transactions = relationship("Transaction", back_populates="agent")
+```text
+User -> browser UserAgent -> POST /api/agent/delegate
+     -> authenticated backend delegate endpoint
+     -> LangGraph ServerAgent
+     -> SSE reasoning/result stream
+     -> browser UserAgent -> chat UI
 ```
 
-- [ ] **Step 2: Add migration**
+Each network hop is authenticated. The backend verifies the caller is a `user` agent, verifies the target is a `server` agent, then runs a LangGraph graph:
+
+```text
+IntentNode -> ToolNode -> SynthesisNode -> END
+```
+
+The browser UserAgent is plain JavaScript. Do not add LangChain.js to the frontend.
+
+## Current Repo Facts This Plan Must Preserve
+
+- Backend tests live in `backend/tests`, not repo-root `tests`.
+- Existing chat API is `backend/api/chat.py` and uses:
+  - `oauth2_auth.verify_token(bearer_token)` for OAuth2 Bearer access tokens.
+  - ZKP challenge state in `_challenge_store`.
+  - `zkp_auth.verify_proof(proof, public_key, token)` returning `(is_valid, verify_time)`.
+- Existing `ToolCaller.call_tool(...)` accepts `db`; the LangGraph ToolNode must pass the DB session or product search/purchases fall back to mock data.
+- `create_agent` already avoids per-agent RSA private-key generation. Do not reintroduce server-side private-key storage.
+- Existing seeded OAuth2/ZKP demo agents are user agents. `agent_type` must therefore default to `"user"`, not `"server"`.
+- `frontend/src/services/api.js` uses Axios with `baseURL = "/api"`. Native `fetch` must use the same base path intentionally.
+
+## Architecture Decisions
+
+- Use LangGraph on the backend only.
+- Use `graph.astream(..., stream_mode="updates")` so each chunk is the node update that just ran. Do not assume each chunk is a full accumulated state unless `stream_mode="values"` is explicitly used.
+- Use a reducer for `reasoning_steps`, otherwise each node update can replace prior steps instead of accumulating them.
+- Keep graph execution single-pass for this implementation. No conditional back-edge from ToolNode to IntentNode until there is a loop budget and explicit termination rule.
+- Reuse the existing auth semantics instead of inventing a separate proof format for `/delegate`.
+- Stream typed SSE events:
+  - `event: reasoning`
+  - `event: intent_result`
+  - `event: tool_result`
+  - `event: done`
+  - `event: error`
+
+## Task 1: Add `agent_type` to Agent model and operations
+
+**Files**
+
+- Modify: `backend/db/models.py`
+- Modify: `backend/db/operations.py`
+- Create: `backend/db/migrations/add_agent_type.py`
+- Modify tests/fixtures only if needed: `backend/tests/conftest.py`
+
+### Steps
+
+- [ ] Add the column with a user-safe default:
+
+```python
+agent_type = Column(String, nullable=False, default="user")  # "user" | "server"
+```
+
+- [ ] Update `DatabaseOperations.create_agent`:
+
+```python
+def create_agent(
+    self,
+    db: Session,
+    user_id: int,
+    name: str,
+    auth_type: str,
+    public_key: Optional[str] = None,
+    credentials_hash: Optional[str] = None,
+    agent_type: str = "user",
+) -> Agent:
+    if agent_type not in ("user", "server"):
+        raise ValueError("create_agent: agent_type must be 'user' or 'server'.")
+```
+
+Pass `agent_type=agent_type` into every `Agent(...)` construction.
+
+- [ ] Update `DatabaseOperations.upsert_agent` with the same optional `agent_type: str = "user"` argument. Include `Agent.agent_type == agent_type` in the lookup so a user agent and server agent can share an auth type without colliding.
+
+- [ ] Add an idempotent migration:
 
 ```python
 # backend/db/migrations/add_agent_type.py
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from backend.db.models import engine
 
-with engine.connect() as conn:
-    conn.execute(text("ALTER TABLE agents ADD COLUMN agent_type VARCHAR NOT NULL DEFAULT 'server'"))
-    conn.commit()
-print("Migration complete: agent_type column added")
+with engine.begin() as conn:
+    columns = {col["name"] for col in inspect(conn).get_columns("agents")}
+    if "agent_type" not in columns:
+        conn.execute(
+            text("ALTER TABLE agents ADD COLUMN agent_type VARCHAR NOT NULL DEFAULT 'user'")
+        )
+
+print("Migration complete: agents.agent_type is present")
 ```
 
-- [ ] **Step 3: Verify migration**
+- [ ] Verify:
 
 ```bash
+uv run --project backend python backend/db/migrations/add_agent_type.py
 sqlite3 agentic_commerce.db "PRAGMA table_info(agents);" | grep agent_type
+uv run --project backend pytest backend/tests/test_chat.py backend/tests/test_oauth2.py backend/tests/test_zkp.py
 ```
 
-- [ ] **Step 4: Commit**
+## Task 2: Extract reusable agent-auth helpers
 
-```bash
-git add backend/db/models.py backend/db/migrations/add_agent_type.py
-git commit -m "feat(models): add agent_type column to Agent (user|server)"
+**Files**
+
+- Create: `backend/api/agent_auth.py`
+- Modify: `backend/api/chat.py`
+- Test: `backend/tests/api/test_agent_auth.py`
+
+### Rationale
+
+`/api/chat/intent` and `/api/agent/delegate` must authenticate the same user-agent credentials. If `/delegate` implements a separate ZKP path, it will likely skip `_challenge_store`, single-use token consumption, or public-key verification.
+
+### Steps
+
+- [ ] Move challenge validation into a reusable function in `backend/api/chat.py` or `backend/api/agent_auth.py`. Keep `_challenge_store` single-use behavior.
+
+- [ ] Create helpers with this shape:
+
+```python
+def verify_oauth2_agent_request(agent: Agent, http_request: Request) -> dict:
+    auth_header = http_request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise AppError(ErrorCode.AUTH_FAILED, "OAuth2 requires Bearer token", status_code=401)
+    bearer_token = auth_header[7:]
+    payload = oauth2_auth.verify_token(bearer_token)
+    token_agent_id = int(payload.get("sub") or payload.get("client_id") or 0)
+    if token_agent_id != agent.id:
+        raise AppError(ErrorCode.AUTH_FAILED, "Bearer token agent mismatch", status_code=401)
+    return {"type": "oauth2", "agent_id": agent.id, "token_info": oauth2_auth.get_token_info(bearer_token)}
+
+
+def verify_zkp_agent_request(agent: Agent, zkp_token: str | None, zkp_proof: str | None) -> dict:
+    if not agent.public_key:
+        raise AppError(ErrorCode.INVALID_OPERATION, "ZKP agent has no public key stored", status_code=500)
+    if not zkp_token or not zkp_proof:
+        raise AppError(ErrorCode.MISSING_PARAMETER, "zkp_token and zkp_proof required", status_code=400)
+    # Validate challenge exists, is unexpired, belongs to agent, and consume it.
+    consume_zkp_challenge(agent.id, zkp_token)
+    is_valid, verify_time = zkp_auth.verify_proof(zkp_proof, agent.public_key, zkp_token)
+    if not is_valid:
+        raise AppError(ErrorCode.AUTH_FAILED, "ZKP proof verification failed", status_code=401)
+    return {"type": "zkp", "agent_id": agent.id, "verification_time": verify_time}
 ```
 
----
+- [ ] Refactor `/api/chat/intent` to call these helpers, preserving the current response fields (`auth_info`, `timing`) so existing tests keep passing.
 
-## Task 2: Build LangGraph graph (IntentNode → ToolNode → SynthesisNode)
+- [ ] Add tests for token-agent mismatch and ZKP single-use challenge behavior.
 
-**Files:**
+## Task 3: Build LangGraph graph
+
+**Files**
 
 - Create: `backend/agents/agent_graph.py`
-- Create: `backend/agents/__init__.py`
-- Test: `tests/agents/test_agent_graph.py`
-- Modify: `backend/pyproject.toml` (add `langgraph` dependency)
+- Modify: `backend/pyproject.toml` (add `langgraph`)
+- Test: `backend/tests/agents/test_agent_graph.py`
 
-- [ ] **Step 0: Add langgraph dependency**
+### Steps
 
-In `backend/pyproject.toml`, add:
+- [ ] Add dependency:
 
 ```toml
-[project]
-dependencies = [
-    "langgraph>=0.0.20",
-]
+"langgraph",
 ```
 
-Run: `cd backend && uv sync` to install.
+Then run:
 
-- [ ] **Step 1: Write failing test for agent_graph**
-
-```python
-# tests/agents/test_agent_graph.py
-import pytest
-from backend.agents.agent_graph import IntentNode, ToolNode, SynthesisNode, build_graph
-
-@pytest.fixture
-def graph():
-    return build_graph()
-
-@pytest.mark.asyncio
-async def test_intent_node_extracts_action(graph):
-    result = await IntentNode().execute(message="search for laptops")
-    assert result["action"] in ("search_products", "compare_prices", "execute_purchase", "get_product_details")
-
-@pytest.mark.asyncio
-async def test_graph_routes_to_tool_node(graph):
-    state = {"task": "show me laptops", "reasoning_steps": []}
-    async for chunk in graph.astream(state):
-        pass  # just ensure no error
-
-@pytest.mark.asyncio
-async def test_synthesis_node_creates_summary(graph):
-    result = await SynthesisNode().execute(
-        intent_result={"action": "search_products", "results": [{"name": "ThinkPad"}]},
-        reasoning_steps=[]
-    )
-    assert "summary" in result
+```bash
+uv sync --project backend
 ```
 
-Run: `pytest tests/agents/test_agent_graph.py -v`
-Expected: FAIL — modules don't exist
-
-- [ ] **Step 2: Define AgentState**
+- [ ] Define state with an accumulating reducer:
 
 ```python
-# backend/agents/agent_graph.py
-from typing import TypedDict, Annotated
-from langgraph.graph import StateGraph, END
-import json
+from operator import add
+from typing import Annotated, Any, TypedDict
 
 class ReasoningStep(TypedDict):
     node: str
     label: str
-    duration_ms: float | None
+    duration_ms: float
 
 class AgentState(TypedDict):
     task: str
     auth_type: str
     agent_id: int
+    db: Any
     intent_result: dict | None
     tool_result: dict | None
     synthesis_result: dict | None
-    reasoning_steps: list[ReasoningStep]
+    reasoning_steps: Annotated[list[ReasoningStep], add]
 ```
 
-- [ ] **Step 3: Implement IntentNode**
+- [ ] Implement nodes against existing `backend/agents/intent.py`.
+
+Important details:
+
+- `IntentExtraction.extract_intent(...)` returns an `Intent` Pydantic model, not a dict.
+- `ToolCaller.call_tool(...)` must receive `db=state["db"]`.
+- Tool action names are `compare_products`, not `compare_prices`.
+- Import `time` in `backend/agents/agent_graph.py`.
 
 ```python
 class IntentNode:
-    def __init__(self):
-        from .intent import IntentExtraction
-        self._extractor = IntentExtraction()
+    def __init__(self, extractor=None):
+        from .intent import intent_extractor
+        self._extractor = extractor or intent_extractor
 
-    async def execute(self, message: str, auth_type: str = "oauth2", agent_id: int = 0) -> dict:
-        import time
-        t0 = time.monotonic()
-        result = await self._extractor.extract_intent(message)
+    async def execute(self, state: AgentState) -> dict:
+        start = time.perf_counter()
+        intent = await self._extractor.extract_intent(state["task"])
+        duration = (time.perf_counter() - start) * 1000
         return {
-            "intent_result": result,
+            "intent_result": intent.model_dump(),
             "reasoning_steps": [{
                 "node": "IntentNode",
-                "label": f"intent_extraction → {result.get('action', '?')} ({round((time.monotonic()-t0)*1000)}ms)",
-                "duration_ms": (time.monotonic()-t0)*1000,
+                "label": f"intent_extraction -> {intent.action}",
+                "duration_ms": duration,
             }],
         }
 ```
 
-- [ ] **Step 4: Implement ToolNode**
-
 ```python
 class ToolNode:
-    def __init__(self):
-        from .intent import ToolCaller
-        self._caller = ToolCaller()
+    def __init__(self, caller=None):
+        from .intent import tool_caller
+        self._caller = caller or tool_caller
 
-    async def execute(self, intent_result: dict, auth_type: str, agent_id: int) -> dict:
-        import time
-        t0 = time.monotonic()
-        action = intent_result.get("action")
-        params = intent_result.get("parameters", {})
+    async def execute(self, state: AgentState) -> dict:
         from .intent import Intent
+        start = time.perf_counter()
+        intent = Intent(**state["intent_result"])
         result = await self._caller.call_tool(
-            Intent(action=action, parameters=params, confidence=1.0),
-            auth_type,
-            agent_id
+            intent,
+            state["auth_type"],
+            state["agent_id"],
+            db=state["db"],
         )
+        duration = (time.perf_counter() - start) * 1000
         return {
             "tool_result": result,
             "reasoning_steps": [{
                 "node": "ToolNode",
-                "label": f"tool_call → {action} ({round((time.monotonic()-t0)*1000)}ms)",
-                "duration_ms": (time.monotonic()-t0)*1000,
+                "label": f"tool_call -> {intent.action}",
+                "duration_ms": duration,
             }],
         }
 ```
 
-- [ ] **Step 5: Implement SynthesisNode**
+- [ ] Add `SynthesisNode`:
 
 ```python
 class SynthesisNode:
-    async def execute(self, intent_result: dict | None, tool_result: dict | None, reasoning_steps: list) -> dict:
-        summary = f"Executed {intent_result.get('action', '?')}: {json.dumps(tool_result)[:120]}..."
+    async def execute(self, state: AgentState) -> dict:
+        start = time.perf_counter()
+        intent_result = state.get("intent_result") or {}
+        tool_result = state.get("tool_result") or {}
+        summary = f"Executed {intent_result.get('action', 'unknown')}"
+        duration = (time.perf_counter() - start) * 1000
         return {
-            "synthesis_result": {"summary": summary, "full_result": tool_result},
+            "synthesis_result": {
+                "summary": summary,
+                "full_result": tool_result,
+            },
             "reasoning_steps": [{
                 "node": "SynthesisNode",
-                "label": "synthesis → final response compiled",
-                "duration_ms": 0,
+                "label": "synthesis -> final response compiled",
+                "duration_ms": duration,
             }],
         }
 ```
 
-- [ ] **Step 6: Build graph**
+- [ ] Build a linear graph:
 
 ```python
-def build_graph() -> StateGraph:
+from langgraph.graph import END, StateGraph
+
+def build_graph():
     graph = StateGraph(AgentState)
+    intent_node = IntentNode()
+    tool_node = ToolNode()
+    synthesis_node = SynthesisNode()
 
-    # Linear flow: intent → tool → synthesis → END
-    # No back-edge from tool to intent — single-pass execution
-    graph.add_node("intent", _intent_node_wrapper)
-    graph.add_node("tool", _tool_node_wrapper)
-    graph.add_node("synthesis", _synthesis_node_wrapper)
-
+    graph.add_node("intent", intent_node.execute)
+    graph.add_node("tool", tool_node.execute)
+    graph.add_node("synthesis", synthesis_node.execute)
     graph.set_entry_point("intent")
     graph.add_edge("intent", "tool")
     graph.add_edge("tool", "synthesis")
     graph.add_edge("synthesis", END)
-
     return graph.compile()
 ```
 
-> **CAUTION:** The conditional edge `tool → intent` pattern removed — it created a potential infinite loop if `should_continue` ever returned `"intent"`. Linear flow for single-pass execution. If multi-tool chains are needed later, re-add the conditional edge with explicit loop guards.
-
-async def \_intent_node_wrapper(state: AgentState) -> dict:
-node = IntentNode()
-result = await node.execute(state["task"], state["auth_type"], state["agent_id"])
-return result
-
-async def \_tool_node_wrapper(state: AgentState) -> dict:
-node = ToolNode()
-result = await node.execute(state["intent_result"], state["auth_type"], state["agent_id"])
-return result
-
-async def \_synthesis_node_wrapper(state: AgentState) -> dict:
-node = SynthesisNode()
-result = await node.execute(state["intent_result"], state.get("tool_result"), state["reasoning_steps"])
-return result
-
-````
-
-- [ ] **Step 7: Run tests**
+- [ ] Test with mocks so tests do not call NVIDIA NIM:
 
 ```bash
-pytest tests/agents/test_agent_graph.py -v
-````
-
-Expected: PASS
-
-- [ ] **Step 8: Commit**
-
-```bash
-git add backend/agents/agent_graph.py tests/agents/test_agent_graph.py
-git commit -m "feat(agents): add LangGraph agent_graph with IntentNode + ToolNode + SynthesisNode"
+uv run --project backend pytest backend/tests/agents/test_agent_graph.py
 ```
 
----
+## Task 4: Add ServerAgent streaming wrapper
 
-## Task 3: ServerAgent with astream SSE streaming
-
-**Files:**
+**Files**
 
 - Create: `backend/agents/server_agent.py`
-- Test: `tests/agents/test_server_agent.py`
+- Test: `backend/tests/agents/test_server_agent.py`
 
-- [ ] **Step 1: Write failing test**
+### Steps
 
-```python
-# tests/agents/test_server_agent.py
-import pytest
-from backend.agents.server_agent import ServerAgent
+- [ ] Implement `ServerAgent.stream_run(...)`.
 
-@pytest.fixture
-def agent():
-    return ServerAgent()
-
-@pytest.mark.asyncio
-async def test_server_agent_stream_yields_steps(agent):
-    steps = []
-    async for step in agent.stream_run("search for laptops", auth_type="oauth2", agent_id=1):
-        steps.append(step)
-    assert len(steps) >= 1
-    assert any(s.get("node") == "IntentNode" for s in steps)
-```
-
-Run: `pytest tests/agents/test_server_agent.py -v`
-Expected: FAIL — ServerAgent not defined
-
-- [ ] **Step 2: Implement ServerAgent**
+Use `stream_mode="updates"` and yield only the update produced by the node that just completed:
 
 ```python
-# backend/agents/server_agent.py
-import json
-from typing import AsyncIterator
-from .agent_graph import build_graph, AgentState
-
 class ServerAgent:
-    def __init__(self):
-        self._graph = build_graph()
+    def __init__(self, graph=None):
+        self._graph = graph or build_graph()
 
-    async def stream_run(self, task: str, auth_type: str, agent_id: int) -> AsyncIterator[dict]:
-        """
-        Run the LangGraph and yield reasoning steps as they are produced.
-        Uses astream (NOT astream_events) — each yield is state after ONE node.
-        """
-        initial_state: AgentState = {
+    async def stream_run(self, task: str, auth_type: str, agent_id: int, db) -> AsyncIterator[dict]:
+        initial_state = {
             "task": task,
             "auth_type": auth_type,
             "agent_id": agent_id,
+            "db": db,
             "intent_result": None,
             "tool_result": None,
             "synthesis_result": None,
             "reasoning_steps": [],
         }
 
-        async for state in self._graph.astream(initial_state):
-            # state is the full AgentState after a node ran
-            # yield each new reasoning step as it appears
-            for step in state.get("reasoning_steps", []):
-                yield step
+        final_result = None
+        async for chunk in self._graph.astream(initial_state, stream_mode="updates"):
+            for _node_name, update in chunk.items():
+                for step in update.get("reasoning_steps", []):
+                    yield {"event": "reasoning", "data": step}
+                if update.get("intent_result") is not None:
+                    yield {"event": "intent_result", "data": update["intent_result"]}
+                if update.get("tool_result") is not None:
+                    yield {"event": "tool_result", "data": update["tool_result"]}
+                if update.get("synthesis_result") is not None:
+                    final_result = update["synthesis_result"]
 
-            # yield result objects when they appear
-            if state.get("intent_result") and not state.get("_intent_yielded"):
-                yield {"node": "INTENT_RESULT", "data": state["intent_result"]}
-                state["_intent_yielded"] = True
-            if state.get("tool_result") and not state.get("_tool_yielded"):
-                yield {"node": "TOOL_RESULT", "data": state["tool_result"]}
-                state["_tool_yielded"] = True
-
-        # Final synthesis
-        yield {"node": "DONE", "data": state.get("synthesis_result")}
-
-    async def run(self, task: str, auth_type: str, agent_id: int) -> dict:
-        """Non-streaming run — collects all steps."""
-        steps = []
-        result = None
-        async for step in self.stream_run(task, auth_type, agent_id):
-            if step.get("node") == "DONE":
-                result = step.get("data")
-            else:
-                steps.append(step)
-        return {"reasoning_steps": steps, "result": result}
+        yield {"event": "done", "data": final_result}
 ```
 
-- [ ] **Step 3: Run tests**
+- [ ] Add a non-streaming `run(...)` helper only if tests or callers need it.
+
+- [ ] Verify:
 
 ```bash
-pytest tests/agents/test_server_agent.py -v
+uv run --project backend pytest backend/tests/agents/test_server_agent.py
 ```
 
-Expected: PASS
+## Task 5: Add `/api/agent/delegate`
 
-- [ ] **Step 4: Commit**
-
-```bash
-git add backend/agents/server_agent.py tests/agents/test_server_agent.py
-git commit -m "feat(agents): add ServerAgent with astream SSE streaming"
-```
-
----
-
-## Task 4: POST /api/agent/delegate with StreamingResponse
-
-**Files:**
+**Files**
 
 - Create: `backend/api/agent.py`
-- Modify: `backend/main.py` (register router)
-- Test: `tests/api/test_agent_delegate.py`
+- Modify: `backend/main.py`
+- Test: `backend/tests/api/test_agent_delegate.py`
 
-- [ ] **Step 1: Write failing test**
-
-```python
-# tests/api/test_agent_delegate.py
-import pytest
-from fastapi.testclient import TestClient
-from backend.main import app
-
-def test_delegate_requires_auth(client):
-    response = client.post("/api/agent/delegate", json={"task": "show me laptops"})
-    assert response.status_code == 401
-```
-
-Run: `pytest tests/api/test_agent_delegate.py -v`
-Expected: FAIL — endpoint doesn't exist
-
-- [ ] **Step 2: Implement DelegateRequest + endpoint**
+### Request model
 
 ```python
-# backend/api/agent.py
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import Optional
-from sqlalchemy.orm import Session
-import json
-
-from ..db.models import Agent, get_db
-from ..agents.server_agent import ServerAgent
-from ..auth.oauth2 import oauth2_auth
-from ..auth.zkp import zkp_auth
-from ..utils.errors import AppError, ErrorCode
-
-router = APIRouter(prefix="/api/agent", tags=["agent"])
-
 class DelegateRequest(BaseModel):
     task: str
+    calling_agent_id: int
     target_agent_id: int
-    zkp_token: Optional[str] = None
-    zkp_proof: Optional[str] = None
+    zkp_token: str | None = None
+    zkp_proof: str | None = None
+```
 
+The explicit `calling_agent_id` is required for ZKP, where the proof is bound to the stored public key for that agent. OAuth2 must still verify the Bearer token subject matches `calling_agent_id`.
 
+### Endpoint behavior
+
+- [ ] Load `calling_agent` and require `agent_type == "user"`.
+- [ ] Authenticate `calling_agent` using the shared helper for its `auth_type`.
+- [ ] Load `target_agent` and require `agent_type == "server"`.
+- [ ] Run `ServerAgent.stream_run(task, target_agent.auth_type, target_agent.id, db)`.
+- [ ] Encode proper SSE frames:
+
+```python
+def sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+```
+
+- [ ] Handle stream errors by yielding `event: error` before re-raising only if headers have not been sent. Keep implementation simple for the first pass.
+
+```python
 @router.post("/delegate")
-async def agent_delegate(
-    request: DelegateRequest,
-    http_request: Request,
-    db: Session = Depends(get_db)
-):
-    # 1. Authenticate caller (must be a "user" agent)
-    auth_header = http_request.headers.get("Authorization", "")
-    calling_agent_id = None
-
-    if auth_header.startswith("Bearer "):
-        bearer_token = auth_header[7:]
-        token_payload = oauth2_auth.verify_token(bearer_token)
-        calling_agent_id = token_payload.get("client_id") or token_payload.get("sub")
-    elif request.zkp_token and request.zkp_proof:
-        # ZKP path — verify the proof to authenticate the caller
-        # caller is the agent identified by zkp_token's agent_id
-        try:
-            verification_result = zkp_auth.verify_proof(
-                request.zkp_token,
-                json.loads(request.zkp_proof),
-            )
-            # zkp_token encodes the agent_id on the server side
-            calling_agent_id = verification_result.get("agent_id")
-        except Exception:
-            raise AppError(error_code=ErrorCode.AUTH_FAILED, message="ZKP proof invalid", status_code=401)
-    else:
-        raise AppError(error_code=ErrorCode.AUTH_FAILED, message="Bearer token or ZKP proof required", status_code=401)
-
-    if not calling_agent_id:
-        raise AppError(error_code=ErrorCode.AUTH_FAILED, message="Could not determine caller identity", status_code=401)
-
-    calling_agent = db.query(Agent).filter(Agent.id == int(calling_agent_id)).first()
-    if not calling_agent:
-        raise AppError(error_code=ErrorCode.RESOURCE_NOT_FOUND, message="Calling agent not found", status_code=404)
+async def agent_delegate(request: DelegateRequest, http_request: Request, db: Session = Depends(get_db)):
+    calling_agent = get_agent_or_404(db, request.calling_agent_id)
     if calling_agent.agent_type != "user":
-        raise AppError(error_code=ErrorCode.AUTH_FAILED, message="Only user agents can call /delegate", status_code=403)
+        raise AppError(ErrorCode.AUTH_FAILED, "Only user agents can delegate", status_code=403)
 
-    # 2. Validate target is a server agent
-    target_agent = db.query(Agent).filter(Agent.id == request.target_agent_id).first()
-    if not target_agent:
-        raise AppError(error_code=ErrorCode.RESOURCE_NOT_FOUND, message=f"Target agent {request.target_agent_id} not found", status_code=404)
+    if calling_agent.auth_type == "oauth2":
+        auth_info = verify_oauth2_agent_request(calling_agent, http_request)
+    elif calling_agent.auth_type == "zkp":
+        auth_info = verify_zkp_agent_request(calling_agent, request.zkp_token, request.zkp_proof)
+    else:
+        raise AppError(ErrorCode.INVALID_PARAMETER, f"Unsupported auth_type: {calling_agent.auth_type}", status_code=400)
+
+    target_agent = get_agent_or_404(db, request.target_agent_id)
     if target_agent.agent_type != "server":
-        raise AppError(error_code=ErrorCode.INVALID_OPERATION, message="Target must be a server agent", status_code=400)
+        raise AppError(ErrorCode.INVALID_OPERATION, "Target must be a server agent", status_code=400)
 
-    # 3. Run ServerAgent with streaming
     server_agent = ServerAgent()
 
     async def event_stream():
-        async for step in server_agent.stream_run(
-            task=request.task,
-            auth_type=target_agent.auth_type,
-            agent_id=request.target_agent_id
-        ):
-            yield f"data: {json.dumps(step)}\n\n"
+        yield sse("auth", auth_info)
+        async for item in server_agent.stream_run(request.task, target_agent.auth_type, target_agent.id, db):
+            yield sse(item["event"], item["data"])
 
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "X-Agent-Id": str(calling_agent_id),
-            "X-Target-Agent-Id": str(request.target_agent_id),
-        }
-    )
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 ```
 
-- [ ] **Step 3: Register router in main.py**
+- [ ] Register the router in `backend/main.py`:
 
 ```python
-# backend/main.py — add import + include_router near chat_router
 from .api.agent import router as agent_router
 app.include_router(agent_router)
 ```
 
-- [ ] **Step 4: Run tests**
+- [ ] Verify:
 
 ```bash
-pytest tests/api/test_agent_delegate.py -v
+uv run --project backend pytest backend/tests/api/test_agent_delegate.py backend/tests/test_chat.py
 ```
 
-Expected: PASS (or FAIL on auth — fix and retry)
+## Task 6: Seed a server agent
 
-- [ ] **Step 5: Commit**
+**Files**
 
-```bash
-git add backend/api/agent.py backend/main.py tests/api/test_agent_delegate.py
-git commit -m "feat(api): add POST /api/agent/delegate StreamingResponse endpoint"
-```
+- Modify: `backend/main.py`
+- Modify: `frontend/src/context/AgentsContext.jsx`
+- Test: existing seed tests in `backend/tests/test_chat.py`, plus a focused assertion for `server_agent`.
 
----
+### Steps
 
-## Task 5: Remove create_rsa_keypair from db/operations.py
-
-**Files:**
-
-- Modify: `backend/db/operations.py`
-
-- [ ] **Step 1: Remove from create_agent**
-
-Find `create_rsa_keypair` call inside `create_agent` function in `backend/db/operations.py`. Remove it. Set `public_key=None` and `oauth2_private_key=None` in the returned Agent object.
-
-- [ ] **Step 2: Verify main.py seed**
-
-Check seed endpoint — ensure it does NOT set `oauth2_private_key` on any agent. Seed should only set `public_key` when the client registers it via `/api/auth/oauth2/register`.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add backend/db/operations.py
-git commit -m "refactor(auth): remove create_rsa_keypair from create_agent"
-```
-
----
-
-## Task 6: UserAgent client class (vanilla JS, no LangChain.js)
-
-**Files:**
-
-- Create: `frontend/src/agent/UserAgent.js`
-- Modify: `frontend/src/pages/Chat.jsx`
-
-- [ ] **Step 1: Write UserAgent.js**
-
-```javascript
-// frontend/src/agent/UserAgent.js
-import { getAccessToken } from "../services/authApi.js";
-import { api } from "../services/api.js";
-import { computeProof } from "../lib/zkp.js";
-
-let _agentConfig = null; // { agentId, privateKeyPem, authType, targetServerAgentId }
-
-export function setUserAgentConfig(config) {
-  _agentConfig = config;
-}
-
-export function getUserAgentConfig() {
-  return _agentConfig;
-}
-
-/**
- * SSE-powered delegation: opens StreamingResponse from /api/agent/delegate.
- * Calls onReasoningStep(node, step) for each step, onResult(data) when done.
- */
-export const userAgent = {
-  async delegate(task, { onReasoningStep, onResult }) {
-    if (!_agentConfig) {
-      throw new Error(
-        "UserAgent not configured — call setUserAgentConfig() first",
-      );
-    }
-
-    const headers = {};
-    let body = { task, target_agent_id: _agentConfig.targetServerAgentId };
-
-    if (_agentConfig.authType === "oauth2") {
-      const token = await getAccessToken(
-        String(_agentConfig.agentId),
-        _agentConfig.privateKeyPem,
-      );
-      headers["Authorization"] = `Bearer ${token}`;
-    } else if (_agentConfig.authType === "zkp") {
-      const challengeRes = await api.get(
-        `/chat/zkp-challenge/${_agentConfig.agentId}`,
-      );
-      const { zkp_token } = challengeRes.data;
-      const proofJson = await computeProof(_agentConfig.password, zkp_token);
-      let proofData;
-      try {
-        proofData = JSON.parse(proofJson);
-      } catch {
-        throw new Error("ZKP proof computation failed");
-      }
-      body.zkp_token = zkp_token;
-      body.zkp_proof = JSON.stringify({
-        commitment: proofData.commitment,
-        response: proofData.response,
-      });
-    }
-
-    const response = await fetch("/api/agent/delegate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Delegation failed: ${response.status}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          try {
-            const step = JSON.parse(line.slice(6));
-            if (step.node === "DONE") {
-              onResult && onResult(step.data);
-            } else {
-              onReasoningStep && onReasoningStep(step.node, step);
-            }
-          } catch {
-            // skip malformed SSE
-          }
-        }
-      }
-    }
-  },
-};
-```
-
-- [ ] **Step 2: Hook into Chat.jsx handleSend**
-
-Replace `chatApi.intent({ message, agent_id: agentId, ... })` with `userAgent.delegate(message, { onReasoningStep, onResult })`.
-
-```javascript
-// In handleSend, replace the chatApi.intent call with:
-await userAgent.delegate(message, {
-  onReasoningStep: (node, step) => {
-    // Update ActionLog steps in real-time
-    setActionLogSteps((prev) => [...prev.slice(-49), step]);
-  },
-  onResult: (data) => {
-    // Final result — update bubble
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === pendingAgentIdRef.current
-          ? { ...msg, thinking: false, result: data?.full_result }
-          : msg,
-      ),
-    );
-  },
-});
-```
-
-- [ ] **Step 3: Ensure targetServerAgentId is set**
-
-When ZKP or OAuth2 agent is selected in Chat.jsx, also set `targetServerAgentId` (server agent's DB ID) from the seed response.
-
-- [ ] **Step 4: Build**
-
-```bash
-cd frontend && npm run build
-```
-
-Expected: zero errors
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add frontend/src/agent/UserAgent.js frontend/src/pages/Chat.jsx
-git commit -m "feat(agent): add vanilla JS UserAgent with SSE streaming"
-```
-
----
-
-## Task 7: Add CommerceServerAgent to seed
-
-**Files:**
-
-- Modify: `backend/main.py` (seed endpoint)
-
-- [ ] **Step 1: Create server agent during seed**
-
-In `seed_demo_data()`, after user agents are created:
+- [ ] Add this to `/api/demo/seed` after user agents:
 
 ```python
-server_agent = db_ops.create_agent(
+server_agent = db_ops.upsert_agent(
     db=db,
-    user_id=1,
+    user_id=user.id,
     name="CommerceServerAgent",
     auth_type="oauth2",
+    public_key=None,
     agent_type="server",
 )
 ```
 
-- [ ] **Step 2: Add server agent ID to seed response**
+- [ ] Return server agent metadata:
 
 ```python
-return {
-    "user": {"id": user.id, "name": user.name},
-    "oauth2_agent": {"id": oauth2_agent.id, "name": oauth2_agent.name, "auth_type": oauth2_agent.auth_type},
-    "zkp_agent": {"id": zkp_agent.id, "name": zkp_agent.name, "auth_type": zkp_agent.auth_type, "public_key": zkp_agent.public_key},
-    "server_agent": {"id": server_agent.id, "name": server_agent.name, "agent_type": server_agent.agent_type},
+"server_agent": {
+    "id": server_agent.id,
+    "name": server_agent.name,
+    "auth_type": server_agent.auth_type,
+    "agent_type": server_agent.agent_type,
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] Update frontend agent context storage:
+
+```javascript
+const { oauth2_agent, zkp_agent, server_agent } = res.data
+const agentPair = {
+  oauth2AgentId: oauth2_agent.id,
+  zkpAgentId: zkp_agent.id,
+  serverAgentId: server_agent.id,
+}
+```
+
+## Task 7: Add browser UserAgent
+
+**Files**
+
+- Create: `frontend/src/agent/UserAgent.js`
+- Modify: `frontend/src/pages/Chat.jsx`
+- Test/build: `frontend` build
+
+### Steps
+
+- [ ] Add a plain JS UserAgent that:
+  - Stores `{ agentId, authType, privateKeyPem/privateKey, targetServerAgentId }`.
+  - Uses `getAccessToken(...)` for OAuth2.
+  - Uses `chatApi.getZkpChallenge(agentId)` and `signWithPrivateKeyHex(privateKey, zkp_token)` for ZKP. Do not call a non-existent `computeProof`.
+  - Uses `fetch("/api/agent/delegate", ...)` because Axios is not suitable for incremental browser stream consumption.
+  - Parses SSE events, not just `data:` lines.
+
+```javascript
+const response = await fetch("/api/agent/delegate", {
+  method: "POST",
+  headers,
+  body: JSON.stringify(body),
+})
+```
+
+Body shape:
+
+```javascript
+{
+  task,
+  calling_agent_id: _agentConfig.agentId,
+  target_agent_id: _agentConfig.targetServerAgentId,
+  zkp_token,
+  zkp_proof
+}
+```
+
+- [ ] Wire Chat setup to preserve `server_agent.id` from seed in session storage.
+
+- [ ] Replace `chatApi.intent(...)` in `Chat.jsx` with `userAgent.delegate(...)`.
+
+- [ ] On `reasoning` events, append to the computation/action log in the same shape current components expect.
+
+- [ ] On `intent_result`, store the pending message `intent`.
+
+- [ ] On `tool_result`, store the pending message `result`.
+
+- [ ] On `done`, clear `thinking` and call `storeResult(...)` with a compatibility object:
+
+```javascript
+storeResult({
+  intent: pendingIntent,
+  result: pendingToolResult,
+  auth_info: pendingAuthInfo,
+  timing: pendingTiming,
+})
+```
+
+- [ ] Verify:
 
 ```bash
-git add backend/main.py
-git commit -m "feat(seed): create CommerceServerAgent during demo seed"
+cd frontend
+npm run build
 ```
 
----
+## Task 8: End-to-end verification
 
-## Architecture After Implementation
+Run the backend suite and frontend build:
 
-```
-User → [UserAgent] → POST /api/agent/delegate (OAuth2 Bearer OR ZKP proof)
-                  → ServerAgent.stream_run()
-                  → LangGraph astream: IntentNode → ToolNode → SynthesisNode
-                  → SSE: reasoning_step events
-                  → [UserAgent] → User
+```bash
+uv run --project backend pytest backend/tests
 
-Auth at each hop:
-- User → UserAgent: local (no network)
-- UserAgent → Backend: OAuth2 Bearer token OR ZKP proof
-- Backend → ServerAgent: internal — calling agent auth already verified at /delegate entry
+cd frontend
+npm run build
 ```
 
----
+Manual smoke test:
 
-## Spec Coverage Checklist
+```bash
+uv run --project backend uvicorn backend.main:app --reload --port 8000
+```
 
-| Requirement                                     | Task                                         |
-| ----------------------------------------------- | -------------------------------------------- |
-| User delegates to user agent                    | Task 6                                       |
-| User agent talks to server agent                | Tasks 4, 6                                   |
-| Bilateral auth at each hop                      | Task 4 (verify caller), Task 6 (client auth) |
-| Server agent executes intent (LangGraph)        | Tasks 2, 3                                   |
-| Reasoning steps streamed via SSE                | Tasks 3, 4, 6                                |
-| Agent type distinction (user vs server)         | Task 1                                       |
-| Seed creates server agent                       | Task 7                                       |
-| OAuth2 auth cleanup (remove create_rsa_keypair) | Task 5                                       |
+In another terminal:
 
----
+```bash
+cd frontend
+npm run dev
+```
 
-## Why NOT astream_events
+Check:
 
-`astream_events` fires `on_chain_end` per node PLUS one at graph completion. Each event carries the FULL accumulated state — ActionLog would get 4 identical full-render cycles, not 4 step-by-step updates.
+- OAuth2 chat delegates through `/api/agent/delegate`.
+- ZKP chat delegates through `/api/agent/delegate`.
+- Browser network response is `text/event-stream`.
+- Reasoning steps appear before final result.
+- Product search uses database products, not fallback mock products.
+- Purchases create `Transaction` rows for the target server agent.
 
-`astream` yields the state snapshot AFTER each node. We inspect `state["reasoning_steps"]` and yield only new steps. Correct per-node streaming.
+## Spec Coverage
 
-## Why Vanilla JS UserAgent (No LangChain.js)
+| Requirement | Covered By |
+| --- | --- |
+| User delegates to user agent | Task 7 |
+| User agent talks to server agent | Tasks 5, 7 |
+| Authenticated network hop | Tasks 2, 5 |
+| Distinguish user/server agents | Tasks 1, 6 |
+| LangGraph server execution | Tasks 3, 4 |
+| Reasoning streamed through SSE | Tasks 4, 5, 7 |
+| Existing OAuth2/ZKP flows preserved | Tasks 2, 8 |
+| No frontend LangChain.js | Task 7 |
 
-`createReactAgent` builds a ReAct loop calling LLM tools. UserAgent only does: fetch + SSE parse + callback dispatch. No LLM, no ReAct, no tool-calling. 60KB of LangChain.js overhead for a 50-line vanilla fetch. Wrong tool for the job.
+## Implementation Notes
 
----
-
-## Placeholder Scan
-
-- No "TBD" or "TODO" found
-- All steps show actual code
-- File paths are exact
-
-## Self-Review
-
-Type consistency:
-
-- `ServerAgent.stream_run()` returns `AsyncIterator[dict]` — each dict has `node` and either `label`/`duration_ms` or `data`
-- `DelegateRequest.task` is `str` — `userAgent.delegate(task, ...)` passes `message` — matches
-- `DelegateRequest.target_agent_id` is `int` — `userAgent.delegate(..., {targetServerAgentId})` passes `int` — matches
-- `Agent.agent_type` values: `"user"` and `"server"` — used consistently in Tasks 1, 4, 7
-- LangGraph `AgentState` keys: `intent_result`, `tool_result`, `synthesis_result` — matched in all node wrappers
-- `IntentNode.execute` returns `dict` with `intent_result` — matches `ToolNode.execute` signature pattern
+- Do not commit after each task unless the user explicitly wants that workflow. The old plan's per-task commits are optional, not part of correctness.
+- Keep `oauth2_private_key` deprecated and unset.
+- Do not make existing seeded user agents become server agents by default.
+- Do not bypass ZKP challenge ownership or single-use token consumption.
+- Do not use `astream_events` for this UI stream. It is too verbose for the intended ActionLog and requires extra filtering. Use `astream(..., stream_mode="updates")`.
+- If multi-tool chains are added later, add a bounded loop counter to `AgentState` before introducing conditional graph edges.

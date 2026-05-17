@@ -11,6 +11,7 @@ from .db.operations import db_ops
 from .auth.oauth2 import oauth2_auth
 from .auth.zkp import zkp_auth
 from .api.chat import router as chat_router
+from .api.agent import router as agent_router
 from .attacks.simulations import router as attacks_router
 from .utils.errors import AppError
 
@@ -62,6 +63,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat_router)
+app.include_router(agent_router)
 app.include_router(attacks_router)
 
 
@@ -104,6 +106,15 @@ async def seed_demo(db=Depends(get_db)):
         auth_type="zkp", public_key=None
     )
 
+    server_agent = db_ops.upsert_agent(
+        db=db,
+        user_id=user.id,
+        name="CommerceServerAgent",
+        auth_type="oauth2",
+        public_key=None,
+        agent_type="server",
+    )
+
     # Sample products — upsert via create_product (handles duplicates)
     products_data = [
         {"name": "Laptop", "price": 999.99, "stock": 10, "description": "High-performance laptop", "category": "Electronics"},
@@ -121,10 +132,18 @@ async def seed_demo(db=Depends(get_db)):
             "id": oauth2_agent.id,
             "name": oauth2_agent.name,
             "auth_type": oauth2_agent.auth_type,
+            "agent_type": oauth2_agent.agent_type,
             "note": "Client must call POST /api/auth/oauth2/register with RSA public key. Private key never sent to server.",
         },
         "zkp_agent": {"id": zkp_agent.id, "name": zkp_agent.name, "auth_type": zkp_agent.auth_type,
+                      "agent_type": zkp_agent.agent_type,
                       "note": "Password is NOT stored on server. Client must provide it for authentication."},
+        "server_agent": {
+            "id": server_agent.id,
+            "name": server_agent.name,
+            "auth_type": server_agent.auth_type,
+            "agent_type": server_agent.agent_type,
+        },
         "products": [{"id": p.id, "name": p.name, "price": p.price} for p in products]
     }
 

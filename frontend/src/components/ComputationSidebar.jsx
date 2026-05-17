@@ -1,7 +1,14 @@
 import ActionLog from './ActionLog.jsx'
 import MetricsPanel from './MetricsPanel.jsx'
 
-export default function ComputationSidebar({ authType, latestResult, messageCount, oauth2Credentials, zkpCredentials }) {
+export default function ComputationSidebar({
+  authType,
+  latestResult,
+  messageCount,
+  oauth2Credentials,
+  zkpCredentials,
+  liveReasoningSteps = [],
+}) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -15,6 +22,7 @@ export default function ComputationSidebar({ authType, latestResult, messageCoun
           messageCount={messageCount}
           oauth2Credentials={oauth2Credentials}
           zkpCredentials={zkpCredentials}
+          liveReasoningSteps={liveReasoningSteps}
         />
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>

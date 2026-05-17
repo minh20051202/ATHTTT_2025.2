@@ -80,6 +80,25 @@ function buildZKPStepsFull({ zkpCredentials, latestResult }) {
   return steps
 }
 
+function buildReasoningSteps(latestResult, liveReasoningSteps = []) {
+  const reasoningSteps = liveReasoningSteps.length
+    ? liveReasoningSteps
+    : latestResult?.timing?.reasoning_steps || []
+
+  return reasoningSteps.map((step) => ({
+    phase: step.node === 'ToolNode'
+      ? 'TOOL_CALL'
+      : step.node === 'SynthesisNode'
+        ? 'SYNTHESIS'
+        : 'INTENT',
+    type: 'server',
+    label: step.label || step.node,
+    detail: Number.isFinite(step.duration_ms)
+      ? `${step.node}: ${step.duration_ms.toFixed(1)}ms`
+      : step.node,
+  }))
+}
+
 function Badge({ type }) {
   const isAgent = type === 'agent'
   return (
@@ -100,6 +119,7 @@ function PhaseSeparator({ phase }) {
     PROOF_SEND: 'Dispatch',
     INTENT: 'Intent',
     TOOL_CALL: 'Execution',
+    SYNTHESIS: 'Synthesis',
   }
   return (
     <div style={{
@@ -151,7 +171,14 @@ function StepRow({ step, expanded, onToggle }) {
   )
 }
 
-export default function ActionLog({ authType, latestResult, messageCount = 0, oauth2Credentials, zkpCredentials }) {
+export default function ActionLog({
+  authType,
+  latestResult,
+  messageCount = 0,
+  oauth2Credentials,
+  zkpCredentials,
+  liveReasoningSteps = [],
+}) {
   const [expandedSteps, setExpandedSteps] = useState({})
   const [steps, setSteps] = useState([])
   const bottomRef = useRef(null)
@@ -166,10 +193,10 @@ export default function ActionLog({ authType, latestResult, messageCount = 0, oa
             fetchToken: () => oauth2Credentials ? getAccessToken(String(oauth2Credentials.id), oauth2Credentials.privateKey) : Promise.resolve('') 
           })
         : buildZKPStepsFull({ zkpCredentials, latestResult })
-      setSteps(newSteps)
+      setSteps([...newSteps, ...buildReasoningSteps(latestResult, liveReasoningSteps)])
     }
     buildSteps()
-  }, [latestResult?.timestamp, authType, messageCount])
+  }, [latestResult?.timestamp, authType, messageCount, liveReasoningSteps])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

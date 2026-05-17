@@ -173,7 +173,7 @@ async def replay_attack(request: AttackRequest):
                 timing["verification"] = time.time() - attack_start
                 # Real endpoint rejected the consumed token — this is the correct outcome
                 details = {
-                    "vulnerability": "3. Token Replay: ZKP challenge replay blocked by server — token consumed",
+                    "vulnerability": "3. Token Replay: ZKP replay is blocked by server — token consumed",
                     "token_already_consumed": True,
                     "replay_result": f"REJECTED — {e.message}",
                     "attack_successful": False,

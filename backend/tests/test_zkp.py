@@ -149,6 +149,7 @@ class TestZKPChallengeEndpoint:
 
 class TestZKPAuthenticate:
     """Tests for POST /api/chat/intent with ZKP authentication (three-pass Schnorr)."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def test_zkp_requires_token_and_proof(self, client, zkp_agent, sample_products):
         """Intent endpoint rejects ZKP requests missing token or proof."""
@@ -328,6 +329,7 @@ class TestZKPAuthenticate:
 
 class TestZKPDataIntegrity:
     """Tests that ZKP agent stores only public key, never private key or password."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def test_zkp_agent_credentials_hash_is_null(self, client, db):
         """ZKP agent has credentials_hash=NULL (no shared secret stored)."""

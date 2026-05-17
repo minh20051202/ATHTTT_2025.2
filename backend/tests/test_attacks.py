@@ -4,6 +4,7 @@ import pytest
 
 class TestAttackSimulations:
     """Test attack simulation endpoints to demonstrate OAuth2 vs ZKP security."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def _get_oauth2_bearer_token(self, client, agent):
         """Helper: get OAuth2 access token via client_assertion flow."""

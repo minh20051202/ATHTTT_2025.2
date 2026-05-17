@@ -17,9 +17,13 @@ export function AgentsProvider({ children }) {
       const stored = sessionStorage.getItem('demo_agents')
       if (stored) {
         try {
-          setAgents(JSON.parse(stored))
-          setLoading(false)
-          return
+          const storedAgents = JSON.parse(stored)
+          if (storedAgents?.oauth2AgentId && storedAgents?.zkpAgentId && storedAgents?.serverAgentId) {
+            setAgents(storedAgents)
+            setLoading(false)
+            return
+          }
+          sessionStorage.removeItem('demo_agents')
         } catch {
           sessionStorage.removeItem('demo_agents') // corrupt storage, re-fetch
         }
@@ -28,10 +32,11 @@ export function AgentsProvider({ children }) {
       while (attempts < maxAttempts) {
         try {
           const res = await demoApi.seed()
-          const { oauth2_agent, zkp_agent } = res.data
+          const { oauth2_agent, zkp_agent, server_agent } = res.data
           const agentPair = {
             oauth2AgentId: oauth2_agent.id,
             zkpAgentId: zkp_agent.id,
+            serverAgentId: server_agent?.id,
           }
           sessionStorage.setItem('demo_agents', JSON.stringify(agentPair))
           setAgents(agentPair)

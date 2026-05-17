@@ -89,6 +89,7 @@ class TestOAuth2TokenEndpoint:
 
 class TestOAuth2IntentWithBearerToken:
     """Task 3: /intent accepts OAuth2 Bearer token (replaces server-side token mint)."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def test_oauth2_intent_requires_bearer_token(self, client, oauth2_pkjwt_agent):
         """Without Bearer token, OAuth2 agent intent request is rejected."""

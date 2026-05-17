@@ -99,6 +99,7 @@ class TestOAuth2Auth:
 
 class TestOAuth2Chat:
     """Test OAuth2 PKJWT authentication within the chat endpoint."""
+    pytestmark = pytest.mark.usefixtures("mock_intent_extractor")
 
     def _get_access_token(self, client, agent):
         """Helper: exchange client_assertion for access token."""

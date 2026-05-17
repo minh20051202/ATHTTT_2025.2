@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useAgents } from "../context/AgentsContext.jsx";
 import { useChatHistory } from "../context/ChatHistoryContext.jsx";
-import { chatApi, setAgentConfig } from "../services/chatApi.js";
-import { getAccessToken } from "../services/authApi.js";
+import { setAgentConfig } from "../services/chatApi.js";
 import { demoApi } from "../services/demoApi.js";
-import { generateKeyPair, signWithPrivateKeyHex } from "../lib/zkp.js";
+import { generateKeyPair } from "../lib/zkp.js";
 import { generateRSAKeyPair } from "../lib/oauth2.js";
+import UserAgent from "../agent/UserAgent.js";
 import ChatThread from "../components/ChatThread.jsx";
 import ComputationSidebar from "../components/ComputationSidebar.jsx";
 
@@ -28,7 +28,7 @@ function nextId() {
 
 export default function Chat() {
   const { agents, loading: agentsLoading } = useAgents();
-  const { storeResult, latestResult, resultsByAuth } = useChatHistory();
+  const { storeResult, latestResult } = useChatHistory();
 
   const [authType, setAuthType] = useState("oauth2");
   const [attackMode, setAttackMode] = useState(false);
@@ -47,6 +47,7 @@ export default function Chat() {
   });
   const [oauth2Credentials, setOauth2Credentials] = useState(null);
   const [zkpCredentials, setZkpCredentials] = useState(null);
+  const [liveReasoningSteps, setLiveReasoningSteps] = useState([]);
   const [setupReady, setSetupReady] = useState(false);
 
   // Persist messages to sessionStorage so they survive navigation
@@ -80,6 +81,7 @@ export default function Chat() {
       try {
         const seedRes = await demoApi.seed();
         const oauth2Agent = seedRes?.data?.oauth2_agent || seedRes?.data;
+        const serverAgent = seedRes?.data?.server_agent;
         const agentId = oauth2Agent?.id;
         if (!agentId) return;
 
@@ -95,6 +97,16 @@ export default function Chat() {
             privateKey: privateKeyPem,
           }),
         );
+        if (serverAgent?.id) {
+          sessionStorage.setItem(
+            "demo_agents",
+            JSON.stringify({
+              oauth2AgentId: agentId,
+              zkpAgentId: seedRes?.data?.zkp_agent?.id,
+              serverAgentId: serverAgent.id,
+            }),
+          );
+        }
         setOauth2Credentials({ id: agentId, privateKey: privateKeyPem });
         setSetupReady(true);
       } catch (err) {
@@ -115,6 +127,7 @@ export default function Chat() {
       try {
         const seedRes = await demoApi.seed();
         const zkpAgent = seedRes?.data?.zkp_agent;
+        const serverAgent = seedRes?.data?.server_agent;
         const zkpAgentId = zkpAgent?.id;
         if (!zkpAgentId) return;
 
@@ -129,6 +142,16 @@ export default function Chat() {
           }),
         );
         setZkpCredentials({ id: zkpAgentId, privateKey });
+        if (serverAgent?.id) {
+          sessionStorage.setItem(
+            "demo_agents",
+            JSON.stringify({
+              oauth2AgentId: seedRes?.data?.oauth2_agent?.id,
+              zkpAgentId,
+              serverAgentId: serverAgent.id,
+            }),
+          );
+        }
       } catch (err) {
         console.warn("ZKP setup failed:", err.message);
       }
@@ -144,29 +167,36 @@ export default function Chat() {
         agentId: oauth2Credentials.id,
         privateKeyPem: oauth2Credentials.privateKey,
         authType: "oauth2",
+        targetServerAgentId: agents?.serverAgentId,
       });
     } else if (authType === "zkp" && zkpCredentials) {
       setAgentConfig({
         authType: "zkp",
         privateKey: zkpCredentials.privateKey,
         agentId: zkpCredentials.id,
+        targetServerAgentId: agents?.serverAgentId,
       });
     } else if (authType === "zkp") {
       setAgentConfig({ authType: "zkp" });
     } else {
       setAgentConfig({ authType: "oauth2" });
     }
-  }, [authType, oauth2Credentials, zkpCredentials]);
+  }, [authType, oauth2Credentials, zkpCredentials, agents?.serverAgentId]);
 
   const handleSend = async () => {
     if (!message.trim() || !agents || !setupReady) return;
     if (authType === "oauth2" && !oauth2Credentials) return;
     if (authType === "zkp" && !zkpCredentials) return;
+    if (!agents.serverAgentId) {
+      setChatError("Missing target server agent id. Re-seed the demo data after backend support is available.");
+      return;
+    }
 
+    const task = message.trim();
     const userMsg = {
       id: nextId(),
       role: "user",
-      content: message,
+      content: task,
       timestamp: Date.now(),
     };
     const amId = nextId();
@@ -182,31 +212,58 @@ export default function Chat() {
     setMessage("");
     setSending(true);
     setChatError(null);
+    setLiveReasoningSteps([]);
 
     try {
       const agentId =
         authType === "oauth2" ? oauth2Credentials.id : zkpCredentials.id;
-      let res;
+      const userAgent = new UserAgent({
+        agentId,
+        authType,
+        privateKeyPem: oauth2Credentials?.privateKey,
+        privateKey: zkpCredentials?.privateKey,
+        targetServerAgentId: agents.serverAgentId,
+      });
 
-      if (authType === "oauth2") {
-        res = await chatApi.intent({ message, agent_id: agentId });
-      } else {
-        const challengeRes = await chatApi.getZkpChallenge(agentId);
-        const { zkp_token } = challengeRes.data;
-        const proofJson = await signWithPrivateKeyHex(
-          zkpCredentials.privateKey,
-          zkp_token,
-        );
-        res = await chatApi.intent({
-          message,
-          agent_id: agentId,
-          zkp_token,
-          zkp_proof: proofJson,
-        });
-      }
+      const res = await userAgent.delegate(task, {
+        onEvent: ({ event, data }) => {
+          if (event === "reasoning") {
+            setLiveReasoningSteps((prev) => [...prev.slice(-49), data]);
+          } else if (event === "intent_result") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === pendingAgentIdRef.current
+                  ? { ...msg, intent: data }
+                  : msg,
+              ),
+            );
+          } else if (event === "tool_result") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === pendingAgentIdRef.current
+                  ? { ...msg, result: data }
+                  : msg,
+              ),
+            );
+          } else if (event === "done") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === pendingAgentIdRef.current
+                  ? { ...msg, thinking: false }
+                  : msg,
+              ),
+            );
+          }
+        },
+      });
 
-      const { intent, result: execResult, timing, auth_info } = res.data;
-
+      const { intent, result: execResult, timing, auth_info } = res;
+      const resultData = {
+        intent,
+        result: execResult,
+        auth_info,
+        timing,
+      };
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === pendingAgentIdRef.current
@@ -221,20 +278,7 @@ export default function Chat() {
             : msg,
         ),
       );
-      storeResult(res.data);
-
-      if (authType === "oauth2") {
-        const bearerToken = await getAccessToken(
-          oauth2Credentials.id,
-          oauth2Credentials.privateKey,
-        );
-        setAgentConfig((prev) => ({
-          ...prev,
-          bearerToken: bearerToken || prev?.bearerToken || "",
-          tokenExpAt: 0,
-          agentId,
-        }));
-      }
+      storeResult(resultData);
     } catch (err) {
       setChatError(err.message);
       setMessages((prev) =>
@@ -318,6 +362,7 @@ export default function Chat() {
         messageCount={messages.length}
         oauth2Credentials={oauth2Credentials}
         zkpCredentials={zkpCredentials}
+        liveReasoningSteps={liveReasoningSteps}
       />
     </div>
   );
