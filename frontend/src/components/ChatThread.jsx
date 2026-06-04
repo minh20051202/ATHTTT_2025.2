@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 
 /* ─── Thinking Indicator ─── */
-function ThinkingIndicator({ authType }) {
+function ThinkingIndicator({ authType, status }) {
   const dotColor = authType === 'zkp' ? 'var(--color-zkp)' : 'var(--color-oauth2)'
   return (
     <div className="chat-bubble agent-bubble" style={{ maxWidth: 'min(720px, 92%)' }}>
@@ -12,6 +12,7 @@ function ThinkingIndicator({ authType }) {
             animationDelay: (i * 0.18) + 's',
           }} />
         ))}
+        <span className="thinking-status">{status || 'Processing'}</span>
       </div>
     </div>
   )
@@ -129,6 +130,7 @@ export default function ChatThread({ authType, messages, sending, onSend, messag
                 <ThinkingIndicator
                   key={msg.id}
                   authType={authType}
+                  status={msg.status}
                 />
               )
             }

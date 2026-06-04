@@ -6,7 +6,7 @@ export function BarCell({ value, max, color }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
   return (
     <div style={{
-      height: '10px',
+      height: '16px',
       background: 'var(--color-surface)',
       borderRadius: 'var(--border-radius-pill)',
       overflow: 'hidden',
@@ -25,11 +25,13 @@ export function BarCell({ value, max, color }) {
 function RowLabelCell({ label }) {
   return (
     <span style={{
-      fontSize: '11px',
+      fontSize: 'clamp(10px, 1vw, 13px)',
       color: 'var(--color-muted)',
       fontWeight: 700,
       textTransform: 'uppercase',
       letterSpacing: '0.05em',
+      lineHeight: 1.2,
+      overflowWrap: 'anywhere',
     }}>
       {label}
     </span>
@@ -42,17 +44,18 @@ export function MetricRow({ label, oauth2Val, zkpVal, oauth2Max, zkpMax, unit = 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '80px 1fr 1fr',
-      gap: 'var(--space-4)',
+      gridTemplateColumns: 'minmax(72px, 0.9fr) minmax(0, 1fr) minmax(0, 1fr)',
+      gap: 'clamp(8px, 1.4vw, 20px)',
       alignItems: 'center',
-      padding: 'var(--space-2) 0',
+      padding: 'clamp(8px, 1vw, 12px) 0',
+      minWidth: 0,
     }}>
       <RowLabelCell label={label} />
 
       {/* OAuth2 bar */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text)' }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <span className="font-mono" style={{ fontSize: 'clamp(11px, 1.05vw, 14px)', fontWeight: 700, color: 'var(--color-text)' }}>
             {oauth2Val ? `${fmt(oauth2Val)}${unit}` : '—'}
           </span>
         </div>
@@ -60,9 +63,9 @@ export function MetricRow({ label, oauth2Val, zkpVal, oauth2Max, zkpMax, unit = 
       </div>
 
       {/* ZKP bar */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text)' }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <span className="font-mono" style={{ fontSize: 'clamp(11px, 1.05vw, 14px)', fontWeight: 700, color: 'var(--color-text)' }}>
             {zkpVal ? `${fmt(zkpVal)}${unit}` : '—'}
           </span>
         </div>
@@ -76,20 +79,21 @@ export function MetricHeader() {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '80px 1fr 1fr',
-      gap: 'var(--space-4)',
-      padding: 'var(--space-2) 0',
+      gridTemplateColumns: 'minmax(72px, 0.9fr) minmax(0, 1fr) minmax(0, 1fr)',
+      gap: 'clamp(8px, 1.4vw, 20px)',
+      padding: 'clamp(8px, 1vw, 12px) 0',
       borderBottom: '1px solid var(--color-border)',
-      marginBottom: 'var(--space-2)',
+      marginBottom: 'var(--space-3)',
+      minWidth: 0,
     }}>
       <div />
       <div style={{ textAlign: 'center' }}>
-        <span style={{ fontSize: '10px', color: 'var(--color-oauth2)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: '12px', color: 'var(--color-oauth2)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           OAuth2
         </span>
       </div>
       <div style={{ textAlign: 'center' }}>
-        <span style={{ fontSize: '10px', color: 'var(--color-zkp)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: '12px', color: 'var(--color-zkp)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           ZKP
         </span>
       </div>

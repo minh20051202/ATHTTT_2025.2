@@ -156,6 +156,7 @@ class TestZKPChatTrace:
         assert "auth_info" in data
         auth_info = data["auth_info"]
         assert auth_info["type"] == "zkp"
+        assert auth_info["zkp_token"] == zkp_token
 
         # proof_info present (used by ActionLog proof accordion)
         assert "proof_info" in auth_info

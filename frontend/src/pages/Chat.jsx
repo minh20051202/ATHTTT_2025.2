@@ -28,7 +28,7 @@ function nextId() {
 
 export default function Chat() {
   const { agents, loading: agentsLoading } = useAgents();
-  const { storeResult, latestResult } = useChatHistory();
+  const { storeResult, resultsByAuth } = useChatHistory();
 
   const [authType, setAuthType] = useState("oauth2");
   const [attackMode, setAttackMode] = useState(false);
@@ -205,6 +205,7 @@ export default function Chat() {
       id: amId,
       role: "agent",
       thinking: true,
+      status: "Preparing agent request",
       timestamp: Date.now(),
     };
 
@@ -227,13 +228,36 @@ export default function Chat() {
 
       const res = await userAgent.delegate(task, {
         onEvent: ({ event, data }) => {
-          if (event === "reasoning") {
+          if (event === "processing") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === pendingAgentIdRef.current
+                  ? { ...msg, status: data?.label || "Processing request" }
+                  : msg,
+              ),
+            );
+          } else if (event === "auth") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === pendingAgentIdRef.current
+                  ? { ...msg, status: "Authenticated. Processing request" }
+                  : msg,
+              ),
+            );
+          } else if (event === "reasoning") {
             setLiveReasoningSteps((prev) => [...prev.slice(-49), data]);
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === pendingAgentIdRef.current
+                  ? { ...msg, status: data?.label || "Processing" }
+                  : msg,
+              ),
+            );
           } else if (event === "intent_result") {
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === pendingAgentIdRef.current
-                  ? { ...msg, intent: data }
+                  ? { ...msg, intent: data, status: "Intent resolved. Running tool" }
                   : msg,
               ),
             );
@@ -241,7 +265,7 @@ export default function Chat() {
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === pendingAgentIdRef.current
-                  ? { ...msg, result: data }
+                  ? { ...msg, result: data, status: "Tool returned. Finalizing" }
                   : msg,
               ),
             );
@@ -358,7 +382,7 @@ export default function Chat() {
 
       <ComputationSidebar
         authType={authType}
-        latestResult={latestResult}
+        latestResult={resultsByAuth?.[authType] ?? null}
         messageCount={messages.length}
         oauth2Credentials={oauth2Credentials}
         zkpCredentials={zkpCredentials}

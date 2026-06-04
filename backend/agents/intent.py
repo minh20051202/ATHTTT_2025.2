@@ -129,7 +129,7 @@ Examples:
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.3,
+                "temperature": 0.1,
                 "max_tokens": 500
             }
 
@@ -737,7 +737,7 @@ class ToolCaller:
         agent_id: Optional[int],
         db: Optional[Any] = None
     ) -> Dict[str, Any]:
-        from ..db.models import Transaction
+        from ..db.models import Agent, Transaction
 
         if not db:
             return {"action": "get_order_history", "orders": []}
@@ -745,9 +745,24 @@ class ToolCaller:
         limit = params.get("limit", 10)
         offset = params.get("offset", 0)
 
-        query = db.query(Transaction).filter(Transaction.agent_id == agent_id)
+        agent = db.query(Agent).filter(Agent.id == agent_id).first() if agent_id else None
+        query = db.query(Transaction)
+        if agent:
+            sibling_agent_ids = [
+                row.id
+                for row in db.query(Agent.id).filter(Agent.user_id == agent.user_id).all()
+            ]
+            query = query.filter(Transaction.agent_id.in_(sibling_agent_ids))
+        else:
+            query = query.filter(Transaction.agent_id == agent_id)
+
         total = query.count()
-        transactions = query.order_by(Transaction.created_at.desc()).offset(offset).limit(limit).all()
+        transactions = (
+            query.order_by(Transaction.created_at.desc(), Transaction.id.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
         orders = []
         for t in transactions:
@@ -769,6 +784,7 @@ class ToolCaller:
                 "items": items,
                 "total": t.total_price,
                 "status": t.status,
+                "auth_type_used": t.auth_type_used,
                 "created_at": t.created_at.isoformat() if t.created_at else None,
             })
 

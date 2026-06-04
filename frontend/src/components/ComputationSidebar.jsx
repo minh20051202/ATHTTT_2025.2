@@ -15,7 +15,7 @@ export default function ComputationSidebar({
       height: '100%',
       gap: '16px', overflow: 'hidden',
     }}>
-      <div style={{ flex: '0 0 60%', minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ flex: '0 0 clamp(220px, 38%, 360px)', minHeight: 0, overflow: 'hidden' }}>
         <ActionLog
           authType={authType}
           latestResult={latestResult}
@@ -25,7 +25,7 @@ export default function ComputationSidebar({
           liveReasoningSteps={liveReasoningSteps}
         />
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
         <MetricsPanel />
       </div>
     </div>

@@ -12,8 +12,11 @@ export default function MetricsPanel() {
   const oauth2Verify = (oauth2Auth?.verification_time ?? 0) * 1000
   const zkpVerify = (zkpAuth?.verification_time ?? 0) * 1000
 
-  const oauth2Total = (oauth2?.timing?.total ?? 0) * 1000
-  const zkpTotal = (zkp?.timing?.total ?? 0) * 1000
+  const oauth2Client = (oauth2Auth?.client_computation_time ?? 0) * 1000
+  const zkpClient = (zkpAuth?.client_computation_time ?? 0) * 1000
+
+  const oauth2Total = oauth2Client + oauth2Verify
+  const zkpTotal = zkpClient + zkpVerify
 
   const oauth2Payload = oauth2Auth?.token_size ?? 0
   const zkpPayload = zkpAuth?.proof_info?.proof_size ?? 0
@@ -21,6 +24,7 @@ export default function MetricsPanel() {
   const ALL_MAX_T = Math.max(oauth2Total, zkpTotal, 1)
   const ALL_MAX_P = Math.max(oauth2Payload, zkpPayload, 1)
   const ALL_MAX_V = Math.max(oauth2Verify, zkpVerify, 1)
+  const ALL_MAX_C = Math.max(oauth2Client, zkpClient, 1)
 
   return (
     <div className="sidebar-panel">
@@ -29,7 +33,15 @@ export default function MetricsPanel() {
       </div>
       <div className="panel-content">
         <MetricHeader />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <MetricRow
+            label="Client Compute"
+            oauth2Val={oauth2Client}
+            zkpVal={zkpClient}
+            oauth2Max={ALL_MAX_C}
+            zkpMax={ALL_MAX_C}
+            unit="ms"
+          />
           <MetricRow
             label="Verification"
             oauth2Val={oauth2Verify}
@@ -47,7 +59,7 @@ export default function MetricsPanel() {
             unit="B"
           />
           <MetricRow
-            label="Total Latency"
+            label="Auth Latency"
             oauth2Val={oauth2Total}
             zkpVal={zkpTotal}
             oauth2Max={ALL_MAX_T}

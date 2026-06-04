@@ -96,6 +96,7 @@ def verify_zkp_agent_request(
     proof_info = zkp_auth.get_proof_info(zkp_proof)
     return {
         "type": "zkp",
+        "zkp_token": zkp_token,
         "proof": zkp_proof,
         "proof_info": proof_info,
         "verification_time": verify_time,

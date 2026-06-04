@@ -3,8 +3,8 @@ import ActionLog from './ActionLog.jsx'
 import MetricsPanel from './MetricsPanel.jsx'
 
 export default function ChatTrace({ authType, latestResult, messageCount }) {
-  const { latestResult: fromContext } = useChatHistory()
-  const result = latestResult !== undefined ? latestResult : fromContext
+  const { resultsByAuth } = useChatHistory()
+  const result = latestResult !== undefined ? latestResult : resultsByAuth?.[authType] ?? null
   return (
     <div className="chat-trace-grid">
       <ActionLog

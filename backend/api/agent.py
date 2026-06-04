@@ -73,8 +73,8 @@ async def agent_delegate(
         try:
             async for item in server_agent.stream_run(
                 request.task,
-                target_agent.auth_type,
-                target_agent.id,
+                calling_agent.auth_type,
+                calling_agent.id,
                 db,
             ):
                 yield sse(item["event"], item["data"])

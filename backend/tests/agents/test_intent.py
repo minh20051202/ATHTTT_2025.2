@@ -364,3 +364,47 @@ async def test_get_order_history(db):
     assert result["limit"] == 5
     assert len(result["orders"]) >= 1
     assert result["orders"][0]["total"] == 49.99
+
+
+@pytest.mark.asyncio
+async def test_get_order_history_includes_same_user_agent_transactions(
+    db,
+    oauth2_pkjwt_agent,
+    zkp_agent,
+    sample_products,
+):
+    """Order history is user-scoped, so OAuth2 and ZKP agents see the same user's orders."""
+    from backend.agents.intent import Intent, tool_caller
+    from backend.db.models import Transaction
+
+    older = Transaction(
+        agent_id=oauth2_pkjwt_agent.id,
+        product_id=sample_products[0].id,
+        product_ids=str(sample_products[0].id),
+        amount=1,
+        total_price=sample_products[0].price,
+        auth_type_used="oauth2",
+        status="completed",
+    )
+    newer = Transaction(
+        agent_id=zkp_agent.id,
+        product_id=sample_products[1].id,
+        product_ids=str(sample_products[1].id),
+        amount=1,
+        total_price=sample_products[1].price,
+        auth_type_used="zkp",
+        status="completed",
+    )
+    db.add_all([older, newer])
+    db.commit()
+    db.refresh(older)
+    db.refresh(newer)
+
+    intent = Intent(action="get_order_history", parameters={"limit": 10})
+    result = await tool_caller.call_tool(intent, "oauth2", oauth2_pkjwt_agent.id, db)
+
+    transaction_ids = [order["transaction_id"] for order in result["orders"]]
+    assert newer.id in transaction_ids
+    assert older.id in transaction_ids
+    assert result["orders"][0]["transaction_id"] == newer.id
+    assert result["orders"][0]["auth_type_used"] == "zkp"

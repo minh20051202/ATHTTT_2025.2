@@ -1,5 +1,5 @@
 import { chatApi } from '../services/chatApi.js'
-import { getAccessToken } from '../services/authApi.js'
+import { getAccessTokenWithTiming } from '../services/authApi.js'
 import { signWithPrivateKeyHex } from '../lib/zkp.js'
 
 function parseJson(data) {
@@ -91,6 +91,7 @@ export class UserAgent {
       intent: null,
       result: null,
       auth_info: null,
+      client_auth_time: 0,
       timing: null,
       reasoning_steps: [],
       done: null,
@@ -114,16 +115,19 @@ export class UserAgent {
     }
 
     if (this.config.authType === 'oauth2') {
-      const token = await getAccessToken(
+      const { token, clientComputationTime } = await getAccessTokenWithTiming(
         String(this.config.agentId),
         this.config.privateKeyPem,
       )
+      state.client_auth_time = clientComputationTime
       headers.Authorization = `Bearer ${token}`
     } else if (this.config.authType === 'zkp') {
       const challengeRes = await chatApi.getZkpChallenge(this.config.agentId)
       const { zkp_token } = challengeRes.data
       body.zkp_token = zkp_token
+      const proofStart = performance.now()
       body.zkp_proof = await signWithPrivateKeyHex(this.config.privateKey, zkp_token)
+      state.client_auth_time = (performance.now() - proofStart) / 1000
     } else {
       throw new Error(`Unsupported auth type: ${this.config.authType || 'unknown'}`)
     }
@@ -139,9 +143,20 @@ export class UserAgent {
       throw new Error(normalizeErrorPayload(parseJson(text)))
     }
 
+    if (onEvent) {
+      await onEvent({
+        event: 'processing',
+        data: { label: 'Processing request' },
+        state: { ...state },
+      })
+    }
+
     await readSseStream(response, async ({ event, data }) => {
       if (event === 'auth') {
-        state.auth_info = data
+        state.auth_info = {
+          ...data,
+          client_computation_time: state.client_auth_time,
+        }
       } else if (event === 'reasoning') {
         state.reasoning_steps = [...state.reasoning_steps, data]
       } else if (event === 'intent_result') {

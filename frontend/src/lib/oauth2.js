@@ -125,7 +125,7 @@ export async function createClientAssertion(clientId, privateKeyPem) {
  * @returns {Promise<{access_token: string, token_type: string, expires_in: number}>}
  */
 export async function exchangeToken(clientId, privateKeyPem) {
-  const { assertion } = await createClientAssertion(clientId, privateKeyPem)
+  const { assertion, generationTime } = await createClientAssertion(clientId, privateKeyPem)
   const formData = new URLSearchParams()
   formData.append('client_id', clientId)
   formData.append('client_assertion', assertion)
@@ -141,5 +141,9 @@ export async function exchangeToken(clientId, privateKeyPem) {
     throw new Error(error.message || `Token exchange failed: ${response.status}`)
   }
 
-  return response.json()
+  const data = await response.json()
+  return {
+    ...data,
+    clientComputationTime: generationTime / 1000,
+  }
 }

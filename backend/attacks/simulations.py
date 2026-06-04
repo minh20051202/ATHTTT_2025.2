@@ -47,6 +47,58 @@ def _verify_oauth2_token(token: str) -> dict:
     return oauth2_auth.verify_token(token)
 
 
+def _get_agent_order_history(db, agent_id: int, limit: int = 10) -> dict:
+    """Return order history directly from protected transaction data."""
+    from ..db.models import Agent, Transaction
+
+    agent = db.query(Agent).filter(Agent.id == agent_id).first() if agent_id else None
+    query = db.query(Transaction)
+    if agent:
+        sibling_agent_ids = [
+            row.id
+            for row in db.query(Agent.id).filter(Agent.user_id == agent.user_id).all()
+        ]
+        query = query.filter(Transaction.agent_id.in_(sibling_agent_ids))
+    else:
+        query = query.filter(Transaction.agent_id == agent_id)
+
+    total = query.count()
+    transactions = query.order_by(Transaction.created_at.desc(), Transaction.id.desc()).limit(limit).all()
+
+    orders = []
+    for t in transactions:
+        product_ids = [int(pid) for pid in t.product_ids.split(",")] if t.product_ids else [t.product_id]
+        if product_ids and t.amount:
+            qty_per_item = t.amount // len(product_ids)
+            extra = t.amount % len(product_ids)
+            items = [
+                {
+                    "product_id": pid,
+                    "quantity": qty_per_item + (1 if i < extra else 0),
+                }
+                for i, pid in enumerate(product_ids)
+            ]
+        else:
+            items = [{"product_id": pid, "quantity": 1} for pid in product_ids if pid]
+
+        orders.append({
+            "transaction_id": t.id,
+            "items": items,
+            "total": t.total_price,
+            "status": t.status,
+            "auth_type_used": t.auth_type_used,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+
+    return {
+        "action": "get_order_history",
+        "orders": orders,
+        "total": total,
+        "limit": limit,
+        "offset": 0,
+    }
+
+
 @router.post("/replay", response_model=AttackResponse)
 async def replay_attack(request: AttackRequest):
     """Simulate a replay attack - reusing a token/proof."""
@@ -61,26 +113,10 @@ async def replay_attack(request: AttackRequest):
                 payload = _verify_oauth2_token(request.token)
                 agent_id = payload.get("sub")
                 
-                # 2. Simulate TRUE attack by calling the actual Intent Endpoint
-                from ..api.chat import extract_and_execute, ChatRequest
-                from fastapi import Request
                 from ..db.models import get_db
-                
-                # Mock a request with the stolen Bearer token
-                scope = {
-                    "type": "http",
-                    "headers": [(b"authorization", f"Bearer {request.token}".encode("utf-8"))]
-                }
-                mock_request = Request(scope)
-                
-                chat_req = ChatRequest(
-                    message="show my order history",
-                    agent_id=int(agent_id) if agent_id else 0
-                )
-                
+
                 db = next(get_db())
-                # Actually hit the protected endpoint
-                intent_response = await extract_and_execute(request=chat_req, http_request=mock_request, db=db)
+                exfiltrated_data = _get_agent_order_history(db, int(agent_id) if agent_id else 0)
                 
                 timing["verification"] = time.time() - attack_start
 
@@ -91,8 +127,8 @@ async def replay_attack(request: AttackRequest):
                         "token_expiry": payload.get("exp"),
                         "scopes": payload.get("scopes", ["all"])
                     },
-                    "replay_result": "ACCESS GRANTED — Attacker successfully re-authenticated as victim by calling /api/chat/intent",
-                    "exfiltrated_data": intent_response.result,  # Result directly from the intent endpoint
+                    "replay_result": "ACCESS GRANTED — Attacker successfully reused victim bearer token to read protected order history",
+                    "exfiltrated_data": exfiltrated_data,
                     "attack_successful": True,
                     "countermeasure": "Use one-time tokens (JTI), shorter TTLs, and implement DPoP (Demonstrating Proof-of-Possession)."
                 }
@@ -306,23 +342,33 @@ async def credential_theft_attack(request: AttackRequest):
 
 @router.post("/mitm", response_model=AttackResponse)
 async def mitm_attack(request: AttackRequest):
-    """Simulate MITM / TLS Downgrade.
+    """Simulate MITM request tampering over an interceptable channel.
 
-    tls_downgrade_active=True  → countermeasure ON (mTLS) → attack BLOCKED
-    tls_downgrade_active=False → no countermeasure → connection vulnerable → creds intercepted
+    tls_downgrade_active=True  → countermeasure ON (mTLS/pinning) → attack BLOCKED
+    tls_downgrade_active=False → no countermeasure → attacker can sniff, modify, and forward
     """
     timing = {}
     attack_start = time.time()
+    original_message = "search for Laptop"
+    tampered_message = "show my order history"
 
     # No countermeasure → vulnerable → attack succeeds
     if not settings.tls_downgrade_active:
-        # Connection is vulnerable to TLS downgrade — show intercepted data
+        from ..api.chat import extract_and_execute, ChatRequest
+        from fastapi import Request
+        from ..db.models import get_db
+
+        # Connection is vulnerable to TLS interception: sniff credentials, modify
+        # application payload, then forward the modified request to the real endpoint.
         if request.auth_type == "oauth2":
-            timing["interception"] = time.time() - attack_start
+            sniff_start = time.time()
 
             stolen_token = None
-            for entry in settings.proxy_buffer:
+            for entry in reversed(settings.proxy_buffer):
                 headers = entry.get("headers", {})
+                body = entry.get("body", {})
+                if request.agent_id and body.get("agent_id") != request.agent_id:
+                    continue
                 auth_header = next((v for k, v in headers.items() if k.lower() == "authorization"), "")
                 if auth_header.startswith("Bearer "):
                     stolen_token = auth_header[7:]
@@ -332,32 +378,65 @@ async def mitm_attack(request: AttackRequest):
             if not stolen_token:
                 stolen_token = request.token
 
+            timing["sniff"] = time.time() - sniff_start
+            modify_start = time.time()
+            scope = {
+                "type": "http",
+                "headers": [(b"authorization", f"Bearer {stolen_token}".encode("utf-8"))]
+            }
+            mock_request = Request(scope)
+            payload = _verify_oauth2_token(stolen_token)
+            agent_id = int(request.agent_id or payload.get("sub") or 0)
+            chat_req = ChatRequest(message=tampered_message, agent_id=agent_id)
+            timing["modify"] = time.time() - modify_start
+
+            send_start = time.time()
+            db = next(get_db())
+            tampered_response = await extract_and_execute(request=chat_req, http_request=mock_request, db=db)
+            timing["send"] = time.time() - send_start
+
             details = {
+                "vulnerability": "1. Simulated MITM: attacker can sniff, modify, and forward OAuth2 bearer-token traffic",
+                "mitm_flow": [
+                    "sniff: captured Authorization bearer token from request headers",
+                    f"modify: changed message from '{original_message}' to '{tampered_message}'",
+                    "send: forwarded tampered request to /api/chat/intent with the stolen bearer token",
+                ],
                 "intercepted_data": {
                     "header_name": "Authorization",
                     "header_value": stolen_token or "N/A",
                 },
+                "tampered_request": {
+                    "original_message": original_message,
+                    "modified_message": tampered_message,
+                    "agent_id": agent_id,
+                },
+                "forwarded_result": tampered_response.result,
                 "attack_successful": True,
-                "impact": "Attacker extracts bearer token from intercepted request, reuses directly",
-                "countermeasure": "mTLS + TLS 1.3 pinning prevents proxy from reading traffic"
+                "impact": "The server accepted the attacker-modified request because the bearer token authenticates the agent but does not protect request-body integrity.",
+                "countermeasure": "mTLS + TLS 1.3 pinning prevents proxy inspection; DPoP or request signatures can bind credentials to method, URL, and body hash."
             }
 
             return AttackResponse(
                 attack_type="mitm",
                 auth_type="oauth2",
                 success=True,
-                message="SUCCESS — TLS Interception captured Authorization: Bearer token",
+                message="SUCCESS — MITM sniffed bearer token, modified request body, and forwarded it",
                 details=details,
                 timing=timing
             )
 
         elif request.auth_type == "zkp":
-            timing["interception"] = time.time() - attack_start
+            sniff_start = time.time()
 
             captured_proof = None
-            for entry in settings.proxy_buffer:
+            captured_token = request.token
+            for entry in reversed(settings.proxy_buffer):
                 body = entry.get("body", {})
-                if body.get("zkp_proof"):
+                if request.agent_id and body.get("agent_id") != request.agent_id:
+                    continue
+                if body.get("zkp_token") and body.get("zkp_proof"):
+                    captured_token = body.get("zkp_token")
                     captured_proof = body.get("zkp_proof")
                     break
 
@@ -365,20 +444,68 @@ async def mitm_attack(request: AttackRequest):
             if not captured_proof:
                 captured_proof = request.token2 or "zkp_proof_from_wire"
 
+            timing["sniff"] = time.time() - sniff_start
+            modify_start = time.time()
+            agent_id = request.agent_id
+            if not agent_id:
+                from ..db.models import Agent
+                db = next(get_db())
+                zkp_agent = db.query(Agent).filter(Agent.auth_type == "zkp").first()
+                agent_id = zkp_agent.id if zkp_agent else 1
+
+            scope = {"type": "http", "headers": []}
+            mock_request = Request(scope)
+            chat_req = ChatRequest(
+                message=tampered_message,
+                agent_id=agent_id,
+                zkp_token=captured_token,
+                zkp_proof=captured_proof,
+            )
+            timing["modify"] = time.time() - modify_start
+
+            send_start = time.time()
+            try:
+                db = next(get_db())
+                tampered_response = await extract_and_execute(request=chat_req, http_request=mock_request, db=db)
+                timing["send"] = time.time() - send_start
+                forwarded_result = tampered_response.result
+                attack_successful = True
+                message = "SUCCESS — MITM modified and forwarded the in-flight ZKP request"
+                impact = "The proof was valid for the challenge, but it was not bound to the request body, so an in-flight attacker could alter the command before first use."
+            except AppError as e:
+                timing["send"] = time.time() - send_start
+                forwarded_result = {"error": e.message}
+                attack_successful = False
+                message = "BLOCKED — Captured ZKP token/proof could not be forwarded"
+                impact = "The captured proof was rejected, usually because the challenge token had already been consumed or expired."
+
             details = {
+                "vulnerability": "1. Simulated MITM: attacker sniffs a ZKP challenge/proof, modifies the request body, and attempts to forward it",
+                "mitm_flow": [
+                    "sniff: captured zkp_token and zkp_proof from request body",
+                    f"modify: changed message from '{original_message}' to '{tampered_message}'",
+                    "send: forwarded tampered request to /api/chat/intent with the captured challenge/proof",
+                ],
                 "intercepted_data": {
+                    "captured_challenge": captured_token,
                     "captured_proof": captured_proof,
                 },
-                "attack_successful": True,
-                "impact": "MITM proxy captures the ZKP proof (commitment t and response s) in transit.",
-                "countermeasure": "mTLS + TLS 1.3 pinning prevents traffic inspection by intermediaries."
+                "tampered_request": {
+                    "original_message": original_message,
+                    "modified_message": tampered_message,
+                    "agent_id": agent_id,
+                },
+                "forwarded_result": forwarded_result,
+                "attack_successful": attack_successful,
+                "impact": impact,
+                "countermeasure": "mTLS + TLS 1.3 pinning prevents traffic inspection. Also bind the ZKP challenge to a canonical request hash so body tampering invalidates the proof."
             }
 
             return AttackResponse(
                 attack_type="mitm",
                 auth_type="zkp",
-                success=True,
-                message="SUCCESS — ZKP proof intercepted from unencrypted traffic",
+                success=attack_successful,
+                message=message,
                 details=details,
                 timing=timing
             )

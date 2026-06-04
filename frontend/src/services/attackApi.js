@@ -14,11 +14,11 @@ async function runAttack({ authType, token, attackType, token2, agentId }) {
 }
 
 export const attackApi = {
-  replay: (authType, token, agentId) =>
-    runAttack({ authType, token, attackType: 'replay', agentId }),
+  replay: (authType, token, agentId, token2) =>
+    runAttack({ authType, token, token2, attackType: 'replay', agentId }),
 
-  mitm: (authType, token, agentId) =>
-    runAttack({ authType, token, attackType: 'mitm', agentId }),
+  mitm: (authType, token, agentId, token2) =>
+    runAttack({ authType, token, token2, attackType: 'mitm', agentId }),
 
   nonceReuse: () =>
     api.post('/attacks/nonce-reuse', {

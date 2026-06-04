@@ -56,16 +56,28 @@ class TestAttackSimulations:
 
     def test_replay_attack_on_zkp_fails(self, client, zkp_agent):
         """Replaying a ZKP proof fails -- ZKP is protected against replay."""
-        # First: get a valid proof from chat
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
 
-        # Launch replay attack
+        first_response = client.post(
+            "/api/chat/intent",
+            json={
+                "message": "search for Laptop",
+                "agent_id": zkp_agent.id,
+                "zkp_token": zkp_token,
+                "zkp_proof": proof,
+            }
+        )
+        assert first_response.status_code == 200
+
+        # Launch replay attack with the same consumed challenge/proof pair
         attack_response = client.post(
             "/api/attacks/replay",
             json={
                 "auth_type": "zkp",
-                "token": proof,
-                "attack_type": "replay"
+                "token": zkp_token,
+                "token2": proof,
+                "attack_type": "replay",
+                "agent_id": zkp_agent.id,
             }
         )
 
@@ -148,6 +160,9 @@ class TestAttackSimulations:
         data = resp.json()
         assert data["success"] is True, f"Expected vulnerable (success=True), got {data}"
         assert "intercepted_data" in data["details"]
+        assert data["details"]["mitm_flow"][0].startswith("sniff:")
+        assert data["details"]["tampered_request"]["modified_message"] == "show my order history"
+        assert data["details"]["forwarded_result"]["action"] == "get_order_history"
 
     def test_mitm_vulnerable_zkp_succeeds(self, client, zkp_agent):
         """MITM on ZKP when no mTLS countermeasure is active (tls_downgrade_active=False)."""
@@ -157,11 +172,23 @@ class TestAttackSimulations:
 
         zkp_token, proof = self._get_zkp_proof(client, zkp_agent)
 
-        resp = client.post("/api/attacks/mitm", json={"auth_type": "zkp", "token": proof, "attack_type": "mitm"})
+        resp = client.post(
+            "/api/attacks/mitm",
+            json={
+                "auth_type": "zkp",
+                "token": zkp_token,
+                "token2": proof,
+                "attack_type": "mitm",
+                "agent_id": zkp_agent.id,
+            }
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True, f"Expected vulnerable (success=True), got {data}"
         assert "intercepted_data" in data["details"]
+        assert data["details"]["mitm_flow"][1].startswith("modify:")
+        assert data["details"]["tampered_request"]["modified_message"] == "show my order history"
+        assert data["details"]["forwarded_result"]["action"] == "get_order_history"
 
     def test_client_assertion_sub_oauth2_vulnerable(self, client, oauth2_pkjwt_agent):
         from backend.utils.config import settings
@@ -217,8 +244,23 @@ class TestAttackSimulations:
         assert data["success"] is False
         assert "entropy" in data["details"]["observation"]
 
-    def test_active_replay_attack_oauth2(self, client, oauth2_pkjwt_agent):
+    def test_active_replay_attack_oauth2(self, client, db, oauth2_pkjwt_agent, sample_products):
         """Replaying a valid OAuth2 Bearer token succeeds and exfiltrates real data."""
+        from backend.db.models import Transaction
+
+        transaction = Transaction(
+            agent_id=oauth2_pkjwt_agent.id,
+            product_id=sample_products[1].id,
+            product_ids=str(sample_products[1].id),
+            amount=1,
+            total_price=sample_products[1].price,
+            auth_type_used="oauth2",
+            status="completed",
+        )
+        db.add(transaction)
+        db.commit()
+        db.refresh(transaction)
+
         # 1. Get a valid Bearer token
         token = self._get_oauth2_bearer_token(client, oauth2_pkjwt_agent)
 
@@ -242,6 +284,7 @@ class TestAttackSimulations:
         assert "orders" in data["details"]["exfiltrated_data"]
         # It should have at least the transactions seeded for this agent
         assert isinstance(data["details"]["exfiltrated_data"]["orders"], list)
+        assert data["details"]["exfiltrated_data"]["orders"][0]["transaction_id"] == transaction.id
 
     def test_invalid_auth_type_returns_error(self, client, oauth2_pkjwt_agent):
         """Invalid auth_type in attack endpoints returns 400."""
